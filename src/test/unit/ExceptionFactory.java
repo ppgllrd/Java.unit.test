@@ -9,7 +9,7 @@ import java.util.Objects;
  * Factory utility class for creating tests that verify an expression throws an exception
  * of one *specific* type {@code E}. It optionally allows checking the thrown exception's
  * message against an *exact* string.
- *
+ * <p>
  * This class acts as a convenience wrapper around {@link ExceptionOneOf}, simplifying
  * the common case of expecting a single, specific exception type. It does not
  * directly support message predicates (use {@link ExceptionOneOf} or {@link TestFactory} for that).

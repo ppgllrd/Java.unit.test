@@ -10,7 +10,7 @@ import java.util.function.Supplier;
  * Factory utility class for creating tests that expect any {@code Throwable} to be thrown,
  * *except* for {@code UnsupportedOperationException}. It allows specifying conditions
  * on the thrown exception's message (exact match or predicate).
- *
+ * <p>
  * This class delegates the actual test creation to {@link ExceptionExcept}.
  *
  * @author Pepe Gallardo & Gemini

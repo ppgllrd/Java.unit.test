@@ -7,7 +7,7 @@ import java.util.Optional;
  * Represents the possible outcomes of executing a {@link Test}.
  * This is a sealed interface with record implementations for specific results
  * like success, various types of failures (equality, property, exception-related, timeout), etc.
- *
+ * <p>
  * The {@code message(Config)} method provides a localized and potentially colored description
  * of the outcome, requiring a {@link Config} for formatting.
  *
@@ -20,11 +20,6 @@ public sealed interface TestResult
 
     /** Indicates whether this result represents a successful test execution. */
     boolean isSuccess();
-
-    private static String lowerCapitalize(String str) {
-        if (str == null || str.isEmpty()) return str;
-        return Character.toLowerCase(str.charAt(0)) + str.substring(1);
-    }
 
     /**
      * Generates a formatted message describing the test outcome.
@@ -150,7 +145,7 @@ public sealed interface TestResult
             // Basic message indicating wrong type thrown
             var wrongTypeMsg = config.msg("wrong.exception.type.basic", thrownName);
             // Message indicating what was expected instead
-            var butExpectedMsg = config.msg("but.expected", TestResult.lowerCapitalize(expectedExceptionDescription));
+            var butExpectedMsg = config.msg("but.expected", expectedExceptionDescription);
             return "\n   " + failedMarker(config) +
                    "\n   " + wrongTypeMsg +
                    "\n   " + butExpectedMsg;
@@ -206,7 +201,7 @@ public sealed interface TestResult
             // Basic message indicating wrong type and message thrown
             var wrongAllMsg = config.msg("wrong.exception.and.message.basic", thrownName, actualMsgStr);
             // Message indicating what was expected instead
-            var butExpectedMsg = config.msg("but.expected", TestResult.lowerCapitalize(expectedExceptionDescription));
+            var butExpectedMsg = config.msg("but.expected", expectedExceptionDescription);
             return "\n   " + failedMarker(config) +
                    "\n   " + wrongAllMsg +
                    "\n   " + butExpectedMsg;

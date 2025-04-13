@@ -8,7 +8,7 @@ import java.util.function.Supplier;
 
 /** Central factory class providing convenient static methods for creating
   * various types of {@link Test} instances (e.g., equality, property, exception tests).
-  *
+  * <p>
   * This class delegates the actual creation to the static factory methods
   * of the specific test classes (like {@link Equal}, {@link Property}, {@link ExceptionOneOf}, etc.).
   * It aims to provide a simpler, unified entry point for test definition.

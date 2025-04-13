@@ -7,7 +7,7 @@ import java.util.Objects;
  * Represents distinct types of arguments used in constructing localized and
  * formatted descriptive messages (help strings) for exception tests
  * (subclasses of {@link ExceptionBy}).
- *
+ * <p>
  * Using these specific types allows the formatting logic (e.g., in {@link ExceptionBy#formattedHelp(Config)})
  * to apply appropriate styling (like colors) and joining logic based on the
  * argument's semantic meaning, decoupling it from the raw values.

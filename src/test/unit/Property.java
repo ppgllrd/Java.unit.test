@@ -11,12 +11,12 @@ import java.util.function.Supplier;
 /**
  * Represents a test that verifies if the result of an evaluated expression
  * satisfies a given predicate function (the "property").
- *
+ * <p>
  * It supports providing a custom description of the property being tested,
  * either directly as a string ({@code help}) or via a localization key ({@code helpKey}).
  * Similarly, formatting the evaluated result (on failure) can be customized
  * using {@code mkString} or {@code mkStringKey}.
- *
+ * <p>
  * This class handles the asynchronous execution, timeout, and exception handling.
  *
  * @param <T> The type of the value produced by {@code toEvaluate}.

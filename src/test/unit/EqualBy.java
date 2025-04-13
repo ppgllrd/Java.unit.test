@@ -10,7 +10,7 @@ import java.util.function.Supplier;
 /**
  * Represents a test that verifies if the result of an expression is considered equal
  * to an expected value, using a custom equality function ({@code equalsFn}).
- *
+ * <p>
  * This class serves as a base for equality tests and handles the asynchronous
  * execution, timeout, and exception handling logic common to tests.
  *

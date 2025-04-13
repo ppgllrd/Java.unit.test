@@ -6,7 +6,7 @@ import java.util.Optional;
 /**
  * Abstract base class representing a single, executable test case.
  * Each concrete test class (e.g., {@link Equal}, {@link Assert}, {@link ExceptionOneOf}) extends this class.
- *
+ * <p>
  * It defines the common structure: a name, an optional timeout override, and the {@code run} method
  * which handles the execution lifecycle (logging start/end, timeout management) by calling
  * the abstract {@code executeTest} method implemented by subclasses.
@@ -88,7 +88,7 @@ public abstract class Test {
      * Subclasses must implement this method to perform the actual test evaluation
      * (e.g., evaluate an expression, compare values, check for exceptions) and
      * return the appropriate {@link TestResult}.
-     *
+     * <p>
      * This method is called by the {@code run} method and receives the final configuration context,
      * including the *resolved* timeout value for this specific test execution.
      *

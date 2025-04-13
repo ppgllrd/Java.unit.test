@@ -8,7 +8,7 @@ import java.util.function.Supplier;
 /**
  * A specific type of test that verifies if the result of an evaluated expression
  * is equal to an expected value using the standard equality method ({@code Objects.equals}).
- *
+ * <p>
  * It extends {@link EqualBy}, providing {@code Objects.equals(a, b)} as the equality function.
  *
  * @param <T> The type of the value produced by the expression and the expected value.

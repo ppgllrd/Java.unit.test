@@ -1,12 +1,15 @@
 package test.unit;
 
 import java.io.PrintStream;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.function.Function;
 
 /**
  * Defines the interface for logging test execution progress and results.
  * Implementations determine the destination and format of the output
  * (e.g., console with/without color, silent).
- *
+ * <p>
  * Logger methods typically require a {@link Config} instance to access
  * localization settings and formatting preferences (like color support).
  *
@@ -86,6 +89,46 @@ public interface Logger {
      */
     void flush();
 
+    // Compile the pattern once for efficiency, escaping backslashes for Java strings
+    Pattern SENTENCE_START_PATTERN =
+        Pattern.compile("(?m)((?:^|[.\\n\\r]\\s*)(?:\\u001B\\[[0-9;]*m)*)([a-z])");
+    // Group 1: Captures everything before the letter (start anchor OR punctuation/whitespace + ANSI codes)
+    // Group 2: Captures the lowercase letter to be capitalized
+
+    /**
+     * Applies sentence capitalization to the given text.
+     * This method capitalizes the first letter of each sentence
+     * while ignoring ANSI color codes and whitespace.
+     * <p>
+     * It handles:
+     * <ul>
+     * <li>Beginning of the string (<code>^</code>).</li>
+     * <li>After a period (<code>.</code>), newline (<code>\n</code>), or carriage return (<code>\r</code>).</li>
+     * <li>Ignoring whitespace (<code>\\s*</code>) and line breaks (<code>\\R*</code>) in between.</li>
+     * <li>Ignoring ANSI escape codes (<code>\\u001B\\[[0-9;]*m)*</code>).</li>
+     * <li>Capitalizing the first lowercase letter found (<code>[a-z]</code>).</li>
+     * </ul>
+     * @param text The input text to be processed.
+     * @return The text with the first letter of each sentence capitalized.
+     */
+    static String applySentenceCapitalization(String text) {
+        if (text == null || text.isEmpty()) {
+            return text; // Return null or empty strings as is
+        }
+
+        Matcher matcher = SENTENCE_START_PATTERN.matcher(text);
+        // Use Java 9+'s replaceAll with a lambda (Function) to provide the replacement logic
+        // The lambda receives a MatchResult object for each match found.
+        Function<java.util.regex.MatchResult, String> replacer = matchResult -> {
+            // Reconstruct the replacement:
+            // Group 1 contains everything before the letter (start/punctuation/ANSI)
+            // Group 2 contains the lowercase letter itself
+            // We append Group 1 as is, and append the uppercase version of Group 2.
+            return matchResult.group(1) + matchResult.group(2).toUpperCase();
+        };
+        return matcher.replaceAll(replacer);
+    }
+
     // --- Concrete Logger Implementations ---
 
     /**
@@ -119,7 +162,10 @@ public interface Logger {
         @Override
         public void logResult(TestResult result, Config config) {
             // The result.message method uses the config for localization and formatting (without color here)
-            println(result.message(config));
+            var rawMessage = result.message(config);
+            // Apply sentence capitalization to the message
+            var capitalizedMessage = applySentenceCapitalization(rawMessage);
+            println(capitalizedMessage);
         }
 
         @Override

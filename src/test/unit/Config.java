@@ -40,7 +40,7 @@ public record Config(
     /**
      * Retrieves a localized message pattern for the given key and language,
      * then formats it using the provided arguments.
-     *
+     * <p>
      * It uses {@code java.lang.String.format} with the {@code ROOT} locale for consistent
      * formatting behavior regardless of the system's default locale.
      *

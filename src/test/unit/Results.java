@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
  * Encapsulates the aggregated results of running a {@link TestSuite}.
  * It stores the individual {@link TestResult} outcomes and provides methods
  * to query statistics like passed/failed counts and success rate.
- *
+ * <p>
  * Generating a string representation ({@code mkString} or {@code toString}) requires
  * a {@link Config} instance to handle localization and coloring of the summary.
  *
@@ -76,7 +76,7 @@ public final class Results { // Made final as it represents a completed state
     /**
      * Generates a formatted, localized, and potentially colored string summarizing
      * the test suite results (passed, failed, total counts, and details).
-     *
+     * <p>
      * Requires a {@link Config} to access the logger (for coloring) and
      * localization messages (for labels like "Passed", "Failed").
      *

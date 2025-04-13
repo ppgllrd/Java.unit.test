@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
  * Abstract base class for tests that verify an exception is thrown when evaluating an expression.
  * It handles the common logic for asynchronous execution, timeout, exception catching,
  * and checking the type and message of the thrown exception against expectations.
- *
+ * <p>
  * Subclasses must provide the specific logic for checking the exception type ({@code throwablePredicate})
  * and define how the expectation description ({@code helpKey}, {@code helpArgs}) is constructed.
  *
@@ -103,8 +103,6 @@ public abstract class ExceptionBy<T> extends Test {
                 .collect(Collectors.joining(orConnector));
             case HelpArg.ExactMessage em -> logger.green("\"" + em.message() + "\"");
             case HelpArg.PredicateHelp ph -> logger.green(ph.text());
-            case null, default -> arg.toString(); // Fallback
-
           };
         }).toArray(); // Convert stream to Object array for String.format
 

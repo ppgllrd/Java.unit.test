@@ -76,7 +76,6 @@ public final class TestSuite { // Made final
             logger.println(headerMessage);
             logger.println("=".repeat(headerMessage.length())); // Simple underline
         }
-        logger.println(); // Blank line after header
 
         // 2. Run Individual Tests and Collect Results
         List<TestResult> testResultsList = this.tests.stream()

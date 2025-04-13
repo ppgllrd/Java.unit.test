@@ -12,7 +12,7 @@ import java.util.function.Supplier;
  * A specific exception test that verifies an expression throws *any* {@code Throwable}
  * *except* for a specified excluded type {@code E}.
  * It optionally allows checking the thrown exception's message against an exact string or a predicate.
- *
+ * <p>
  * It extends {@link ExceptionBy}, providing a {@code throwablePredicate} that checks if the
  * thrown exception is *not* an instance of the excluded type {@code E}.
  * Instances should be created using the static factory methods.

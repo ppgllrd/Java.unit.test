@@ -9,7 +9,7 @@ import java.util.function.Supplier;
  * A specific exception test that verifies an expression throws an exception whose type
  * is *one of* a specified set of allowed {@code Throwable} types.
  * It optionally allows checking the thrown exception's message against an exact string or a predicate.
- *
+ * <p>
  * It extends {@link ExceptionBy}, providing a {@code throwablePredicate} that checks if the
  * thrown exception's type is present in the {@code expectedExceptionClasses} set.
  * Instances should be created using the static factory methods.

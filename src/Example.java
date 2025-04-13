@@ -28,7 +28,7 @@ public class Example {
 
     Test equalTest2 = TestFactory.equal(
         /* name */ "String Equality",
-        /* toEvaluate */ () -> "hello".toUpperCase(),
+        /* toEvaluate */ "hello"::toUpperCase,
         /* expected */ "HELLO"
     );
 
@@ -60,7 +60,7 @@ public class Example {
 
     Test refuteTest2 = TestFactory.refuteTest(
         /* name */ "String Is Empty Check",
-        /* toEvaluate */ () -> "".isEmpty()
+        /* toEvaluate */ ""::isEmpty
     );
 
 
@@ -86,7 +86,7 @@ public class Example {
     // Expect specific type
     Test expectEx1 = TestFactory.expectException(
         /* name */ "Arithmetic Exception",
-        /* toEvaluate */ () -> { int x = 1 / 0; return x; }, // Code throwing the exception
+        /* toEvaluate */ () -> 1 / 0, // Code throwing the exception
         /* expectedType */ ArithmeticException.class
     );
 
@@ -113,14 +113,14 @@ public class Example {
     // Expect any exception *except* a specific type
     Test expectExceptEx = TestFactory.expectExceptionExcept(
         /* name */ "Any Except NullPointerException",
-        /* toEvaluate */ () -> { int x = 1 / 0; return x; }, // Throws ArithmeticException
+        /* toEvaluate */ () -> 1 / 0, // Throws ArithmeticException
         /* excludedType */ NullPointerException.class
     );
 
     // Expect any exception *except* UnsupportedError
     Test anyButNIETest = TestFactory.anyExceptionButUnsupportedOperationException(
         /* name */ "Any But NIE (Using ArithmeticEx)",
-        /* toEvaluate */ () -> { int x = 1 / 0; return x; }
+        /* toEvaluate */ () -> 1 / 0
     );
 
     // 5. Test with Timeout (should pass quickly)
