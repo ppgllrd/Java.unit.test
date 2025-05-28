@@ -107,10 +107,8 @@ public class Property<T> extends Test {
                     return new TestResult.Success();
                 } else {
                     // Property failed
-                    // Need a final variable for lambda capture if using direct lambda
-                    final T finalResult = result;
                     Function<T, String> formatter = r -> formatResult(r, config); // Use the helper method
-                    return new TestResult.PropertyFailure<>(finalResult, formatter, currentPropertyDesc);
+                    return new TestResult.PropertyFailure<>(formatter, currentPropertyDesc);
                 }
             } catch (Throwable t) {
                  // Handle potential exceptions during evaluation

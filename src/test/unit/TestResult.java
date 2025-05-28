@@ -62,7 +62,6 @@ public sealed interface TestResult
 
     /** Failure because a property predicate returned `false`. */
     record PropertyFailure<T>(
-        T result, // The actual result obtained from evaluation
         java.util.function.Function<T, String> mkString, // Function to format the result T to String
         String propertyDescription // Pre-formatted description of the expected property
     ) implements Failure, TestResult {
@@ -75,10 +74,8 @@ public sealed interface TestResult
         public String message(Config config) {
             var logger = config.logger();
             // Format the obtained result (colored red) using the provided mkString function
-            var obtainedMsg = config.msg("obtained.result", logger.red(mkString.apply(result)));
             return "\n   " + failedMarker(config) +
-                   "\n   " + propertyDescription +
-                   "\n   " + obtainedMsg;
+                   "\n   " + propertyDescription;
         }
     }
 
