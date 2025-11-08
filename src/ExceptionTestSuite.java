@@ -280,7 +280,7 @@ public class ExceptionTestSuite {
     // --- Run the Test Suite ---
     // Define your configuration (or use Config.DEFAULT)
     // Using English for potentially clearer error message comparison if needed
-    Config config = new Config(new Logger.AnsiConsoleLogger(), Language.ENGLISH, 3);
+    Config config = new Config(new Logger.AnsiConsoleLogger(), Language.ENGLISH, 3, false);
     // Or use default: Config config = Config.DEFAULT;
 
     System.out.println("\nStarting Test Suite Run...\n");

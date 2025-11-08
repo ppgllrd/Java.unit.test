@@ -69,7 +69,7 @@ public abstract class Test {
 
         // 3. Execute Core Logic: Call the abstract method, passing a config
         //    with the *resolved* timeout.
-        Config executionConfig = new Config(config.logger(), config.language(), resolvedTimeout);
+        Config executionConfig = new Config(config.logger(), config.language(), resolvedTimeout, config.csvOutput());
         TestResult result = executeTest(executionConfig);
 
         // 4. Log Result: Use the logger to print the formatted result message

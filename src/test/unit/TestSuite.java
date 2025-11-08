@@ -1,8 +1,6 @@
 package test.unit;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -32,18 +30,18 @@ public final class TestSuite { // Made final
         this.tests = List.of(tests); // Create immutable list from varargs
     }
 
-     /**
+    /**
      * Creates a new TestSuite from a List.
      * @param name The name identifying this suite of tests. Must not be null.
      * @param tests The {@link Test} instances that constitute this suite. Must not be null or contain nulls. Copied.
      */
     public TestSuite(String name, List<Test> tests) {
-         this.name = Objects.requireNonNull(name, "TestSuite name cannot be null");
-         Objects.requireNonNull(tests, "Test list cannot be null");
-          if (tests.stream().anyMatch(Objects::isNull)) {
-             throw new NullPointerException("Test list cannot contain null tests");
-         }
-         this.tests = List.copyOf(tests); // Create immutable copy
+        this.name = Objects.requireNonNull(name, "TestSuite name cannot be null");
+        Objects.requireNonNull(tests, "Test list cannot be null");
+        if (tests.stream().anyMatch(Objects::isNull)) {
+            throw new NullPointerException("Test list cannot contain null tests");
+        }
+        this.tests = List.copyOf(tests); // Create immutable copy
     }
 
 
@@ -133,6 +131,48 @@ public final class TestSuite { // Made final
         logger.println(separator);
         logger.println(); // Extra newline
         logger.flush();
+
+        // If CSV output is enabled, print the CSV summary
+        if (config.csvOutput()) {
+            printCSVSummary(allResults, config);
+        }
+    }
+
+    private static void printCSVSummary(List<Results> allResults, Config config) {
+        Objects.requireNonNull(allResults, "allResults list cannot be null");
+        Objects.requireNonNull(config, "Config cannot be null for printing summary");
+
+        var logger = config.logger();
+
+        StringJoiner sj = new StringJoiner(" ");
+        for (Results results : allResults) {
+            sj.add(results.getPassed() + "/" + results.getTotal());
+        }
+        logger.println(sj.toString());
+
+        sj = new StringJoiner(";;");
+        for (Results results : allResults) {
+            StringJoiner detailSj = new StringJoiner(";");
+            for (char c : results.getDetails().toCharArray()) {
+                detailSj.add(String.valueOf(c));
+            }
+            sj.add(detailSj.toString());
+        }
+        logger.println(sj.toString());
+
+        sj = new StringJoiner(";");
+        for (Results results : allResults) {
+            sj.add(String.valueOf(results.getPassed()));
+        }
+        logger.println(sj.toString());
+
+        sj = new StringJoiner(";");
+        for (Results results : allResults) {
+            sj.add(String.format(Locale.US, "%.3f", (double) results.getPassed() / results.getTotal()));
+        }
+        logger.println(sj.toString());
+
+        logger.flush();
     }
 
     // Helper to capitalize the first letter of a string
@@ -153,11 +193,11 @@ public final class TestSuite { // Made final
      * @return An immutable list containing the {@link Results} object produced by each executed `TestSuite`.
      */
     public static List<Results> runAll(Config config, TestSuite... testSuites) {
-         Objects.requireNonNull(config, "Config cannot be null for runAll");
-         Objects.requireNonNull(testSuites, "TestSuite array cannot be null");
-         if (Arrays.stream(testSuites).anyMatch(Objects::isNull)) {
-             throw new NullPointerException("TestSuite array cannot contain null suites");
-         }
+        Objects.requireNonNull(config, "Config cannot be null for runAll");
+        Objects.requireNonNull(testSuites, "TestSuite array cannot be null");
+        if (Arrays.stream(testSuites).anyMatch(Objects::isNull)) {
+            throw new NullPointerException("TestSuite array cannot contain null suites");
+        }
 
         // Run each suite sequentially, collecting their Results objects
         List<Results> allResults = Stream.of(testSuites)

@@ -16,25 +16,26 @@ import java.util.Objects;
  * @author Pepe Gallardo & Gemini
  */
 public record Config(
-    Logger logger,
-    Language language,
-    int timeout
+        Logger logger,
+        Language language,
+        int timeout,
+        boolean csvOutput
 ) {
     // Default constructor provided by record
 
     /** Canonical constructor with defaults if not specified */
-     public Config {
-         Objects.requireNonNull(logger, "logger cannot be null");
-         Objects.requireNonNull(language, "language cannot be null");
-         if (timeout <= 0) {
-             throw new IllegalArgumentException("timeout must be positive");
-         }
-     }
+    public Config {
+        Objects.requireNonNull(logger, "logger cannot be null");
+        Objects.requireNonNull(language, "language cannot be null");
+        if (timeout <= 0) {
+            throw new IllegalArgumentException("timeout must be positive");
+        }
+    }
 
-     // Constructor providing default values
-     public Config() {
-         this(new Logger.AnsiConsoleLogger(), Language.ENGLISH, 3);
-     }
+    // Constructor providing default values
+    public Config() {
+        this(new Logger.AnsiConsoleLogger(), Language.ENGLISH, 3, false);
+    }
 
 
     /**
@@ -60,10 +61,10 @@ public record Config(
             return String.format(Locale.ROOT, pattern, args);
         } catch (MissingFormatArgumentException e) {
             return String.format("ERROR: Formatting error for key '%s' [%s]: %s. Pattern: '%s', Args: %s",
-                                 key, this.language.toString().toLowerCase(), e.getMessage(), pattern, java.util.Arrays.toString(args));
+                    key, this.language.toString().toLowerCase(), e.getMessage(), pattern, java.util.Arrays.toString(args));
         } catch (Exception e) { // Catch other potential formatting exceptions
-             return String.format("ERROR: Generic formatting error for key '%s' [%s]: %s. Pattern: '%s', Args: %s",
-                                  key, this.language.toString().toLowerCase(), e.getMessage(), pattern, java.util.Arrays.toString(args));
+            return String.format("ERROR: Generic formatting error for key '%s' [%s]: %s. Pattern: '%s', Args: %s",
+                    key, this.language.toString().toLowerCase(), e.getMessage(), pattern, java.util.Arrays.toString(args));
         }
     }
 
@@ -90,21 +91,25 @@ public record Config(
             newLogger = useAnsi ? new Logger.AnsiConsoleLogger() : new Logger.ConsoleLogger();
         }
         // Create new record instance using with-pattern style (records are immutable)
-        return new Config(newLogger, baseConfig.language(), baseConfig.timeout());
+        return new Config(newLogger, baseConfig.language(), baseConfig.timeout(), baseConfig.csvOutput);
     }
 
-     /** Overload for withLogging using default baseConfig */
-     public static Config withLogging(boolean logging, boolean useAnsi) {
-         return withLogging(logging, useAnsi, DEFAULT);
-     }
+    /** Overload for withLogging using default baseConfig */
+    public static Config withLogging(boolean logging, boolean useAnsi) {
+        return withLogging(logging, useAnsi, DEFAULT);
+    }
 
-     /** Overload for withLogging using default useAnsi=true */
-     public static Config withLogging(boolean logging) {
-         return withLogging(logging, true, DEFAULT);
-     }
+    /** Overload for withLogging using default useAnsi=true */
+    public static Config withLogging(boolean logging) {
+        return withLogging(logging, true, DEFAULT);
+    }
 
-     /** Overload for withLogging using default useAnsi=true and default base config */
-     public static Config withLogging(boolean logging, Config baseConfig) {
-         return withLogging(logging, true, baseConfig);
-     }
+    /** Overload for withLogging using default useAnsi=true and default base config */
+    public static Config withLogging(boolean logging, Config baseConfig) {
+        return withLogging(logging, true, baseConfig);
+    }
+
+    public static Config withCsvOutput(boolean csvOutput, Config baseConfig) {
+        return new Config(baseConfig.logger(), baseConfig.language(), baseConfig.timeout(), csvOutput);
+    }
 }
