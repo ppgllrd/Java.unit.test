@@ -138,39 +138,38 @@ public final class TestSuite { // Made final
         }
     }
 
-    private static void printCSVSummary(List<Results> allResults, Config config) {
-        Objects.requireNonNull(allResults, "allResults list cannot be null");
-        Objects.requireNonNull(config, "Config cannot be null for printing summary");
+    public static void printCSVSummary(List<Results> allResults, Config config) {
+        Objects.requireNonNull(allResults, "La lista allResults no puede ser nula");
+        Objects.requireNonNull(config, "El objeto Config no puede ser nulo para imprimir el resumen");
 
-        var logger = config.logger();
+        final var logger = config.logger();
 
-        StringJoiner sj = new StringJoiner(" ");
-        for (Results results : allResults) {
-            sj.add(results.getPassed() + "/" + results.getTotal());
-        }
-        logger.println(sj.toString());
+        logger.println(
+                allResults.stream()
+                        .map(r -> r.getPassed() + "/" + r.getTotal())
+                        .collect(Collectors.joining(" "))
+        );
 
-        sj = new StringJoiner(";;");
-        for (Results results : allResults) {
-            StringJoiner detailSj = new StringJoiner(";");
-            for (char c : results.getDetails().toCharArray()) {
-                detailSj.add(String.valueOf(c));
-            }
-            sj.add(detailSj.toString());
-        }
-        logger.println(sj.toString());
+        logger.println(
+                allResults.stream()
+                        .map(Results::getDetails)
+                        .map(details -> details.chars()
+                                .mapToObj(c -> String.valueOf((char) c))
+                                .collect(Collectors.joining(";")))
+                        .collect(Collectors.joining(";;"))
+        );
 
-        sj = new StringJoiner(";");
-        for (Results results : allResults) {
-            sj.add(String.valueOf(results.getPassed()));
-        }
-        logger.println(sj.toString());
+        logger.println(
+                allResults.stream()
+                        .map(r -> String.valueOf(r.getPassed()))
+                        .collect(Collectors.joining(";"))
+        );
 
-        sj = new StringJoiner(";");
-        for (Results results : allResults) {
-            sj.add(String.format(Locale.US, "%.3f", (double) results.getPassed() / results.getTotal()));
-        }
-        logger.println(sj.toString());
+        logger.println(
+                allResults.stream()
+                        .map(r -> String.format(Locale.US, "%.3f", (double) r.getPassed() / r.getTotal()))
+                        .collect(Collectors.joining(";"))
+        );
 
         logger.flush();
     }
