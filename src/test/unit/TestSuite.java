@@ -124,7 +124,7 @@ public final class TestSuite { // Made final
         // Print the formatted summary block
         String separator = logger.bold(logger.blue("=".repeat(40)));
         logger.println(separator);
-        logger.println(logger.bold(logger.blue(config.msg("summary.tittle"))));
+        logger.println(logger.bold(logger.blue(config.msg("summary.title"))));
         logger.println(separator);
         logger.println(config.msg("summary.suites.run", totalSuites));
         logger.println(config.msg("summary.total.tests", totalTests));

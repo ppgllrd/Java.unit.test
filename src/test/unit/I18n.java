@@ -58,7 +58,7 @@ public final class I18n {
         en.put("results.failed", "Failed");
         en.put("results.total", "Total");
         en.put("results.detail", "Detail");
-        en.put("summary.tittle", "Overall summary");
+        en.put("summary.title", "Overall summary");
         en.put("summary.suites.run", "Suites run: %d"); // %1$=number of suites
         en.put("summary.total.tests", "Total tests: %d"); // %1$=total tests
         en.put("summary.success.rate", "Success rate: %.2f%%"); // %1$=success rate percentage
@@ -106,7 +106,7 @@ public final class I18n {
         es.put("results.failed", "Fallidas");
         es.put("results.total", "Total");
         es.put("results.detail", "Detalle");
-        es.put("summary.tittle", "Resumen general");
+        es.put("summary.title", "Resumen general");
         es.put("summary.suites.run", "Suites ejecutadas: %d"); // %1$=number of suites
         es.put("summary.total.tests", "Total de pruebas: %d"); // %1$=total tests
         es.put("summary.success.rate", "Tasa de éxito: %.2f%%"); // %1$=success rate percentage
@@ -156,7 +156,7 @@ public final class I18n {
         fr.put("results.failed", "Échoués");
         fr.put("results.total", "Total");
         fr.put("results.detail", "Détail");
-        fr.put("summary.tittle", "Résumé général");
+        fr.put("summary.title", "Résumé général");
         fr.put("summary.suites.run", "Suites exécutées : %d"); // %1$=number of suites
         fr.put("summary.total.tests", "Total des tests : %d"); // %1$=total tests
         fr.put("summary.success.rate", "Taux de réussite : %.2f%%"); // %1$=success rate percentage
