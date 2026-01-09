@@ -59,8 +59,8 @@ public class Example {
     );
 
     Test refuteTest2 = TestFactory.refuteTest(
-        /* name */ "String Is Empty Check",
-        /* toEvaluate */ ""::isEmpty
+        /* name */ "String Is Not Empty",
+        /* toEvaluate */ "Hello"::isEmpty
     );
 
 
