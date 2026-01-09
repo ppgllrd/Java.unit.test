@@ -46,6 +46,8 @@ public class ExceptionOneOf<T> extends ExceptionBy<T> {
         if (expectedExceptionClasses == null || expectedExceptionClasses.isEmpty()) {
              throw new IllegalArgumentException("expectedExceptionClasses set cannot be null or empty");
         }
+      // Store expected classes
+      Set<Class<? extends Throwable>> expectedExceptionClasses1 = Set.copyOf(expectedExceptionClasses); // Ensure immutable
     }
 
     // --- Static Factory Methods ---
@@ -99,7 +101,7 @@ public class ExceptionOneOf<T> extends ExceptionBy<T> {
         String key;
         List<HelpArg> args = new ArrayList<>();
         HelpArg typeArg = (typeNamesSorted.size() == 1)
-                          ? new HelpArg.TypeName(typeNamesSorted.get(0))
+                          ? new HelpArg.TypeName(typeNamesSorted.getFirst())
                           : new HelpArg.TypeNameList(typeNamesSorted);
         args.add(typeArg); // Always add type argument(s) first
 

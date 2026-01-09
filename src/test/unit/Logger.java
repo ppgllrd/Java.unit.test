@@ -1,9 +1,9 @@
 package test.unit;
 
 import java.io.PrintStream;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.function.Function;
 
 /**
  * Defines the interface for logging test execution progress and results.

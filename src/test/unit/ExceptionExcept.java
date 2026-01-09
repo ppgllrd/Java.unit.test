@@ -46,6 +46,7 @@ public class ExceptionExcept<T, E extends Throwable> extends ExceptionBy<T> {
               helpKey,
               helpArgs,
               timeoutOverride);
+      // Store the excluded class
     }
 
     // --- Static Factory Methods ---

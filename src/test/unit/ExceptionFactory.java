@@ -1,9 +1,9 @@
 package test.unit;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.Objects;
 
 /**
  * Factory utility class for creating tests that verify an expression throws an exception

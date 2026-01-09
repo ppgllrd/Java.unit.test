@@ -13,7 +13,7 @@ import java.util.Optional;
  *
  * @author Pepe Gallardo & Gemini
  */
-public abstract class Test {
+public non-sealed abstract class Test implements SuiteItem  {
 
     protected final String name;
     protected final Optional<Integer> timeoutOverride;
@@ -69,7 +69,7 @@ public abstract class Test {
 
         // 3. Execute Core Logic: Call the abstract method, passing a config
         //    with the *resolved* timeout.
-        Config executionConfig = new Config(config.logger(), config.language(), resolvedTimeout, config.csvOutput());
+        Config executionConfig = new Config(config.logger(), config.language(), resolvedTimeout, false);
         TestResult result = executeTest(executionConfig);
 
         // 4. Log Result: Use the logger to print the formatted result message

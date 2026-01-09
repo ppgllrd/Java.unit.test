@@ -14,34 +14,34 @@ import java.util.stream.Stream;
 public final class TestSuite { // Made final
 
     private final String name;
-    private final List<Test> tests; // Use immutable list
+    private final List<SuiteItem> items; // Use immutable list
 
     /**
      * Creates a new TestSuite.
      * @param name The name identifying this suite of tests. Must not be null.
-     * @param tests The {@link Test} instances that constitute this suite (varargs). Must not be null or contain nulls.
+     * @param items The {@link SuiteItem} instances that constitute this suite (varargs). Must not be null or contain nulls.
      */
-    public TestSuite(String name, Test... tests) {
+    public TestSuite(String name, SuiteItem... items) { // Change parameter type
         this.name = Objects.requireNonNull(name, "TestSuite name cannot be null");
-        Objects.requireNonNull(tests, "Test array cannot be null");
-        if (Arrays.stream(tests).anyMatch(Objects::isNull)) {
-            throw new NullPointerException("Test array cannot contain null tests");
+        Objects.requireNonNull(items, "SuiteItem array cannot be null");
+        if (Arrays.stream(items).anyMatch(Objects::isNull)) {
+            throw new NullPointerException("SuiteItem array cannot contain null items");
         }
-        this.tests = List.of(tests); // Create immutable list from varargs
+        this.items = List.of(items);
     }
 
-    /**
+     /**
      * Creates a new TestSuite from a List.
      * @param name The name identifying this suite of tests. Must not be null.
-     * @param tests The {@link Test} instances that constitute this suite. Must not be null or contain nulls. Copied.
+     * @param items The {@link SuiteItem} instances that constitute this suite. Must not be null or contain nulls. Copied.
      */
-    public TestSuite(String name, List<Test> tests) {
-        this.name = Objects.requireNonNull(name, "TestSuite name cannot be null");
-        Objects.requireNonNull(tests, "Test list cannot be null");
-        if (tests.stream().anyMatch(Objects::isNull)) {
-            throw new NullPointerException("Test list cannot contain null tests");
-        }
-        this.tests = List.copyOf(tests); // Create immutable copy
+    public TestSuite(String name, List<SuiteItem> items) {
+         this.name = Objects.requireNonNull(name, "TestSuite name cannot be null");
+         Objects.requireNonNull(items, "SuiteItem list cannot be null");
+          if (items.stream().anyMatch(Objects::isNull)) {
+             throw new NullPointerException("SuiteItem list cannot contain null tests");
+         }
+         this.items = List.copyOf(items); // Create immutable copy
     }
 
 
@@ -51,8 +51,8 @@ public final class TestSuite { // Made final
     }
 
     /** Gets an immutable list of the tests in this suite. */
-    public List<Test> getTests() {
-        return tests;
+    public List<SuiteItem> getItems() {
+        return items;
     }
 
     /**
@@ -76,9 +76,16 @@ public final class TestSuite { // Made final
         }
 
         // 2. Run Individual Tests and Collect Results
-        List<TestResult> testResultsList = this.tests.stream()
-                .map(test -> test.run(config)) // Run each test with the config
-                .collect(Collectors.toList()); // Collect results into a list
+        List<TestResult> testResultsList = new ArrayList<>();
+        for (SuiteItem item : this.items) {
+            if (item instanceof Test test) {
+                // If it's a Test, run it and collect the result
+                testResultsList.add(test.run(config));
+            } else if (item instanceof InfoMessage infoMessage) {
+                // If it's an InfoMessage, just print it
+                infoMessage.print(config);
+            }
+        }
 
         // 3. Aggregate Results
         Results results = new Results(testResultsList);
@@ -117,7 +124,7 @@ public final class TestSuite { // Made final
         // Print the formatted summary block
         String separator = logger.bold(logger.blue("=".repeat(40)));
         logger.println(separator);
-        logger.println(logger.bold(logger.blue(config.msg("summary.title"))));
+        logger.println(logger.bold(logger.blue(config.msg("summary.tittle"))));
         logger.println(separator);
         logger.println(config.msg("summary.suites.run", totalSuites));
         logger.println(config.msg("summary.total.tests", totalTests));
@@ -192,11 +199,11 @@ public final class TestSuite { // Made final
      * @return An immutable list containing the {@link Results} object produced by each executed `TestSuite`.
      */
     public static List<Results> runAll(Config config, TestSuite... testSuites) {
-        Objects.requireNonNull(config, "Config cannot be null for runAll");
-        Objects.requireNonNull(testSuites, "TestSuite array cannot be null");
-        if (Arrays.stream(testSuites).anyMatch(Objects::isNull)) {
-            throw new NullPointerException("TestSuite array cannot contain null suites");
-        }
+         Objects.requireNonNull(config, "Config cannot be null for runAll");
+         Objects.requireNonNull(testSuites, "TestSuite array cannot be null");
+         if (Arrays.stream(testSuites).anyMatch(Objects::isNull)) {
+             throw new NullPointerException("TestSuite array cannot contain null suites");
+         }
 
         // Run each suite sequentially, collecting their Results objects
         List<Results> allResults = Stream.of(testSuites)
