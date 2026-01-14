@@ -146,8 +146,8 @@ public final class TestSuite { // Made final
     }
 
     public static void printCSVSummary(List<Results> allResults, Config config) {
-        Objects.requireNonNull(allResults, "La lista allResults no puede ser nula");
-        Objects.requireNonNull(config, "El objeto Config no puede ser nulo para imprimir el resumen");
+        Objects.requireNonNull(allResults, "allResults list cannot be null");
+        Objects.requireNonNull(config, "Config cannot be null for printing summary");
 
         final var logger = config.logger();
 
