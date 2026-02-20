@@ -76,16 +76,15 @@ public final class TestSuite { // Made final
         }
 
         // 2. Run Individual Tests and Collect Results
-        List<TestResult> testResultsList = new ArrayList<>();
-        for (SuiteItem item : this.items) {
-            if (item instanceof Test test) {
-                // If it's a Test, run it and collect the result
-                testResultsList.add(test.run(config));
-            } else if (item instanceof InfoMessage infoMessage) {
-                // If it's an InfoMessage, just print it
-                infoMessage.print(config);
-            }
-        }
+        List<TestResult> testResultsList =
+            this.items.stream()
+                .<TestResult>mapMulti((item, out) -> {
+                    switch (item) {
+                        case Test test -> out.accept(test.run(config));   // a Test, run it and collect the result
+                        case InfoMessage msg -> msg.print(config);        // an InfoMessage, just print it
+                    }
+                })
+                .toList();
 
         // 3. Aggregate Results
         Results results = new Results(testResultsList);
