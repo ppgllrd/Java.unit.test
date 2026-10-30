@@ -16,7 +16,8 @@ import java.util.Optional;
 public sealed interface TestResult
     permits TestResult.Success, TestResult.Failure, TestResult.PropertyFailure, TestResult.EqualityFailure,
             TestResult.NoExceptionFailure, TestResult.WrongExceptionTypeFailure, TestResult.WrongExceptionMessageFailure,
-            TestResult.WrongExceptionAndMessageFailure, TestResult.TimeoutFailure, TestResult.UnexpectedExceptionFailure {
+            TestResult.WrongExceptionAndMessageFailure, TestResult.TimeoutFailure, TestResult.UnexpectedExceptionFailure,
+            TestResult.RemoteFailure, TestResult.InfrastructureFailure {
 
     /** Indicates whether this result represents a successful test execution. */
     boolean isSuccess();
@@ -49,7 +50,8 @@ public sealed interface TestResult
     /** Base sealed interface for all failure results. */
     sealed interface Failure extends TestResult
         permits PropertyFailure, EqualityFailure, NoExceptionFailure, WrongExceptionTypeFailure,
-                WrongExceptionMessageFailure, WrongExceptionAndMessageFailure, TimeoutFailure, UnexpectedExceptionFailure {
+                WrongExceptionMessageFailure, WrongExceptionAndMessageFailure, TimeoutFailure, UnexpectedExceptionFailure,
+                RemoteFailure, InfrastructureFailure {
 
         @Override
         default boolean isSuccess() { return false; }
@@ -248,6 +250,55 @@ public sealed interface TestResult
             var unexpectedMsg = config.msg("unexpected.exception", originalExpectationDescription, thrownName, actualMsgStr);
             return "\n   " + failedMarker(config) +
                    "\n   " + unexpectedMsg;
+        }
+    }
+    /**
+     * Failure reported by a child JVM ({@link TestIsolationMode#PER_TEST_JVM}). The child cannot ship its
+     * original result objects (they hold lambdas), so the message is rendered there with the language and
+     * ANSI settings of the parent and carried as text.
+     */
+    record RemoteFailure(
+        Kind kind, // FAILED: the test's check did not hold; ERROR: unexpected exception
+        String renderedMessage, // Same text that {@code message(Config)} produced in the child
+        String exceptionType, // Fully qualified exception class name (empty if not applicable)
+        String exceptionMessage, // Exception message (empty if none)
+        String stackTrace // Exception stack trace (empty if not applicable)
+    ) implements Failure, TestResult {
+        /** Category of a remote failure. */
+        public enum Kind { FAILED, ERROR }
+
+        public RemoteFailure {
+            Objects.requireNonNull(kind, "kind cannot be null");
+            Objects.requireNonNull(renderedMessage, "renderedMessage cannot be null");
+            Objects.requireNonNull(exceptionType, "exceptionType cannot be null");
+            Objects.requireNonNull(exceptionMessage, "exceptionMessage cannot be null");
+            Objects.requireNonNull(stackTrace, "stackTrace cannot be null");
+        }
+        @Override
+        public String message(Config config) {
+            return renderedMessage;
+        }
+    }
+
+    /**
+     * Failure of the isolation infrastructure rather than of the test itself: the child JVM could not be
+     * started, ended without a valid result, or the isolation was misconfigured.
+     */
+    record InfrastructureFailure(
+        Kind kind,
+        String detail // Human-readable diagnostics
+    ) implements Failure, TestResult {
+        /** Category of an infrastructure failure. */
+        public enum Kind { PROCESS_ERROR, CONFIGURATION_ERROR }
+
+        public InfrastructureFailure {
+            Objects.requireNonNull(kind, "kind cannot be null");
+            Objects.requireNonNull(detail, "detail cannot be null");
+        }
+        @Override
+        public String message(Config config) {
+            return "\n   " + failedMarker(config) +
+                   "\n   " + config.logger().red(kind.name()) + ": " + detail.replace("\n", "\n   ");
         }
     }
 }

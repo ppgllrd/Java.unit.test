@@ -14,13 +14,15 @@ import java.util.Objects;
  * @param language The {@link Language} used for localizing messages from the {@link I18n} resource bundle.
  * @param timeout The default timeout duration in seconds for individual tests, used when a test doesn't specify its own `timeoutOverride`.
  * @param csvOutput Whether to output results in CSV format.
+ * @param isolation How tests are isolated ({@link IsolationOptions}); defaults to {@link TestIsolationMode#SAME_JVM}.
  * @author Pepe Gallardo & Gemini
  */
 public record Config(
         Logger logger,
         Language language,
         int timeout,
-        boolean csvOutput
+        boolean csvOutput,
+        IsolationOptions isolation
 ) {
     // Default constructor is provided by the record
 
@@ -33,13 +35,21 @@ public record Config(
         if (timeout <= 0) {
             throw new IllegalArgumentException("timeout must be positive");
         }
+        Objects.requireNonNull(isolation, "isolation cannot be null");
+    }
+
+    /**
+     * Backwards-compatible constructor: same as the canonical one with default isolation (SAME_JVM).
+     */
+    public Config(Logger logger, Language language, int timeout, boolean csvOutput) {
+        this(logger, language, timeout, csvOutput, IsolationOptions.DEFAULT);
     }
 
     /**
      * No-argument constructor that provides default values.
      */
     public Config() {
-        this(new Logger.AnsiConsoleLogger(), Language.ENGLISH, 3, false);
+        this(new Logger.AnsiConsoleLogger(), Language.ENGLISH, 3, false, IsolationOptions.DEFAULT);
     }
 
 
@@ -90,7 +100,7 @@ public record Config(
     public static Config withLogging(boolean logging, boolean useAnsi, Config baseConfig) {
         Logger newLogger = !logging ? new Logger.SilentLogger() :
                 useAnsi ? new Logger.AnsiConsoleLogger() : new Logger.ConsoleLogger();
-        return new Config(newLogger, baseConfig.language(), baseConfig.timeout(), baseConfig.csvOutput());
+        return new Config(newLogger, baseConfig.language(), baseConfig.timeout(), baseConfig.csvOutput(), baseConfig.isolation());
     }
 
     /** Overload for withLogging using the default configuration as a base. */
@@ -116,7 +126,7 @@ public record Config(
      * @return A new `Config` instance with the specified CSV output setting.
      */
     public static Config withCsvOutput(boolean csvOutput, Config baseConfig) {
-        return new Config(baseConfig.logger(), baseConfig.language(), baseConfig.timeout(), csvOutput);
+        return new Config(baseConfig.logger(), baseConfig.language(), baseConfig.timeout(), csvOutput, baseConfig.isolation());
     }
 
     /** Overload for withCsvOutput using the default configuration as a base. */
@@ -132,7 +142,7 @@ public record Config(
      * @return A new `Config` instance with the specified language.
      */
     public static Config withLanguage(Language language, Config baseConfig) {
-        return new Config(baseConfig.logger(), language, baseConfig.timeout(), baseConfig.csvOutput());
+        return new Config(baseConfig.logger(), language, baseConfig.timeout(), baseConfig.csvOutput(), baseConfig.isolation());
     }
 
     /** Overload for withLanguage using the default configuration as a base. */
@@ -148,11 +158,27 @@ public record Config(
      * @return A new `Config` instance with the specified timeout.
      */
     public static Config withTimeout(int timeout, Config baseConfig) {
-        return new Config(baseConfig.logger(), baseConfig.language(), timeout, baseConfig.csvOutput());
+        return new Config(baseConfig.logger(), baseConfig.language(), timeout, baseConfig.csvOutput(), baseConfig.isolation());
     }
 
     /** Overload for withTimeout using the default configuration as a base. */
     public static Config withTimeout(int timeout) {
         return withTimeout(timeout, DEFAULT);
+    }
+
+    /**
+     * Creates a new `Config` instance based on an existing one, but with different isolation options.
+     *
+     * @param isolation The new {@link IsolationOptions}.
+     * @param baseConfig The `Config` instance to use as a base.
+     * @return A new `Config` instance with the specified isolation options.
+     */
+    public static Config withIsolation(IsolationOptions isolation, Config baseConfig) {
+        return new Config(baseConfig.logger(), baseConfig.language(), baseConfig.timeout(), baseConfig.csvOutput(), isolation);
+    }
+
+    /** Overload for withIsolation using the default configuration as a base. */
+    public static Config withIsolation(IsolationOptions isolation) {
+        return withIsolation(isolation, DEFAULT);
     }
 }

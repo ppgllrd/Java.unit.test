@@ -76,15 +76,18 @@ public final class TestSuite { // Made final
         }
 
         // 2. Run Individual Tests and Collect Results
-        List<TestResult> testResultsList =
-            this.items.stream()
-                .<TestResult>mapMulti((item, out) -> {
-                    switch (item) {
-                        case Test test -> out.accept(test.run(config));   // a Test, run it and collect the result
-                        case InfoMessage msg -> msg.print(config);        // an InfoMessage, just print it
-                    }
-                })
-                .toList();
+        String provider = config.isolation().suiteProvider();
+        List<TestResult> testResultsList = new ArrayList<>();
+        for (int index = 0; index < this.items.size(); index++) {
+            switch (this.items.get(index)) {
+                case Test test -> {                                    // a Test, run it and collect the result
+                    TestLocator locator = provider == null ? null
+                            : new TestLocator(provider, this.name, index, test.getName(), test.getClass().getName());
+                    testResultsList.add(test.runLocated(config, locator));
+                }
+                case InfoMessage msg -> msg.print(config);             // an InfoMessage, just print it
+            }
+        }
 
         // 3. Aggregate Results
         Results results = new Results(testResultsList);

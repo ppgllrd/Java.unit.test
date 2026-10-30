@@ -58,6 +58,14 @@ public non-sealed abstract class Test implements SuiteItem  {
      * @return The {@link TestResult} indicating the outcome (Success or a specific Failure type).
      */
     public final TestResult run(Config config) {
+        return runLocated(config, null);
+    }
+
+    /**
+     * Same as {@link #run(Config)}, but knowing the {@link TestLocator} of this test, which is what allows
+     * {@link TestIsolationMode#PER_TEST_JVM} to run it in a child JVM. Called by {@link TestSuite}.
+     */
+    final TestResult runLocated(Config config, TestLocator locator) {
         Objects.requireNonNull(config, "Config cannot be null for running test");
         var logger = config.logger();
 
@@ -67,20 +75,36 @@ public non-sealed abstract class Test implements SuiteItem  {
         // 2. Resolve Timeout: Use override if present, otherwise use config default
         final int resolvedTimeout = this.timeoutOverride.orElse(config.timeout());
 
-        // 3. Execute Core Logic: Call the abstract method, passing a config
-        //    with the *resolved* timeout.
-        Config executionConfig = new Config(config.logger(), config.language(), resolvedTimeout, false);
-        TestResult result = executeTest(executionConfig);
+        // 3. Execute Core Logic through the configured strategy (SAME_JVM by default), with a config
+        //    carrying the *resolved* timeout.
+        Config executionConfig = new Config(config.logger(), config.language(), resolvedTimeout, false, config.isolation());
+        ExecutionOutcome outcome = TestExecutionStrategy.forMode(config.isolation().mode())
+                .execute(new TestExecutionRequest(this, locator, executionConfig));
+        TestResult result = outcome.result();
 
         // 4. Log Result: Use the logger to print the formatted result message
         logger.logResult(result, config); // Pass original config for context
         logger.println(); // Add a blank line after each test result for readability
+        logChildOutput(outcome, config);
 
         // 5. Flush Logger: Ensure output is visible immediately
         logger.flush();
 
         // Return the outcome
         return result;
+    }
+
+    /** Shows what the child JVM printed (PER_TEST_JVM only; in SAME_JVM the test writes to the console itself). */
+    private static void logChildOutput(ExecutionOutcome outcome, Config config) {
+        var logger = config.logger();
+        if (!outcome.stdout().isEmpty()) {
+            logger.println("   [stdout" + (outcome.stdoutTruncated() ? ", truncated" : "") + "]");
+            logger.println(outcome.stdout().stripTrailing());
+        }
+        if (!outcome.stderr().isEmpty()) {
+            logger.println("   [stderr" + (outcome.stderrTruncated() ? ", truncated" : "") + "]");
+            logger.println(outcome.stderr().stripTrailing());
+        }
     }
 
     /**
