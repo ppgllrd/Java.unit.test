@@ -168,9 +168,10 @@ public class Example implements TestSuiteProvider {
 
   public static void main(String[] args) {
     Example provider = new Example();
-    Config config = Config.DEFAULT.withIsolation(
-            IsolationOptions.perTestJvm(Example.class)
-    );
+    Config config =
+            Config.DEFAULT
+                    .withTimeout(2)
+                    .withIsolation(IsolationOptions.perTestJvm(Example.class));
     System.out.println("Running Test Suite for the Testing Library...");
     TestSuite.runAll(config, provider.suites().toArray(TestSuite[]::new));
     System.out.println("\nTest Suite Execution Finished.");
