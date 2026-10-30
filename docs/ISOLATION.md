@@ -8,6 +8,7 @@
 | `PER_TEST_JVM` | Every test runs in its own freshly started child JVM. The parent enforces the timeout and kills the child with `destroyForcibly()`. |
 
 Existing code needs no change: `Config.DEFAULT`, `new Config()` and the 4-argument `Config` constructor all mean `SAME_JVM`.
+Library classes are organized under `test.unit` subpackages such as `config`, `core`, `assertions` and `execution`; use imports from those packages.
 
 ## Configuration
 
@@ -16,6 +17,14 @@ Tests are lambdas and cannot be sent to another JVM. Each child JVM therefore **
 (provider class, suite name, item index, test name, test class).
 
 ```java
+import test.unit.assertions.Equal;
+import test.unit.config.Config;
+import test.unit.config.IsolationOptions;
+import test.unit.core.TestSuite;
+import test.unit.execution.TestSuiteProvider;
+
+import java.util.List;
+
 public class MySuites implements TestSuiteProvider {          // public class, public no-arg constructor
     @Override public List<TestSuite> suites() {
         return List.of(new TestSuite("Core", Equal.create("2+2", () -> 2 + 2, 4) /* ... */));
@@ -27,7 +36,7 @@ public static void main(String[] args) {
             .withGracePeriodMillis(200)            // destroy() first, destroyForcibly() after 200 ms (default 0)
             .withMaxOutputChars(50_000)            // per test and per stream (default 100 000)
             .withJvmArgs(List.of("-Xmx256m"));     // one list element per argument
-    Config config = Config.withTimeout(5, Config.withIsolation(isolation));
+    Config config = Config.DEFAULT.withIsolation(isolation).withTimeout(5);
     TestSuite.runAll(config, new MySuites().suites().toArray(TestSuite[]::new));
 }
 ```

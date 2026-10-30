@@ -1,5 +1,10 @@
-import test.unit.*; // Import the testing library classes
-
+import test.unit.assertions.Property;
+import test.unit.config.Config;
+import test.unit.config.IsolationOptions;
+import test.unit.core.Test;
+import test.unit.core.TestFactory;
+import test.unit.core.TestSuite;
+import test.unit.execution.TestSuiteProvider;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiPredicate;
@@ -163,7 +168,7 @@ public class Example implements TestSuiteProvider {
 
   public static void main(String[] args) {
     Example provider = new Example();
-    Config config = Config.withIsolation(
+    Config config = Config.DEFAULT.withIsolation(
             IsolationOptions.perTestJvm(Example.class)
     );
     System.out.println("Running Test Suite for the Testing Library...");
@@ -171,4 +176,3 @@ public class Example implements TestSuiteProvider {
     System.out.println("\nTest Suite Execution Finished.");
   }
 }
-

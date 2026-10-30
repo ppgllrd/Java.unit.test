@@ -1,5 +1,22 @@
-import test.unit.*;
-
+import test.unit.assertions.Assert;
+import test.unit.assertions.Equal;
+import test.unit.config.Config;
+import test.unit.config.IsolationOptions;
+import test.unit.config.TestIsolationMode;
+import test.unit.core.Results;
+import test.unit.core.SuiteItem;
+import test.unit.core.Test;
+import test.unit.core.TestResult;
+import test.unit.core.TestSuite;
+import test.unit.execution.ChildJvmCommandFactory;
+import test.unit.execution.ExecutionOutcome;
+import test.unit.execution.IsolatedTestWorker;
+import test.unit.execution.PerTestJvmExecutionStrategy;
+import test.unit.execution.TestExecutionRequest;
+import test.unit.execution.TestLocator;
+import test.unit.execution.TestSuiteProvider;
+import test.unit.i18n.Language;
+import test.unit.logging.Logger;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -219,10 +236,17 @@ public class IsolationTests {
             check(new Config().isolation().mode() == TestIsolationMode.SAME_JVM, "new Config() is SAME_JVM");
             check(new Config(new Logger.SilentLogger(), Language.SPANISH, 5, true).isolation().mode() == TestIsolationMode.SAME_JVM,
                     "legacy 4-argument constructor is SAME_JVM");
-            check(Config.withTimeout(9, Config.DEFAULT).isolation().equals(IsolationOptions.DEFAULT), "with* keep isolation");
-            Config pt = Config.withIsolation(perTest());
-            check(Config.withLanguage(Language.FRENCH, pt).isolation().mode() == TestIsolationMode.PER_TEST_JVM, "with* preserve PER_TEST_JVM");
-            TestResult r = testNamed("pass").run(Config.withIsolation(IsolationOptions.DEFAULT.withMode(TestIsolationMode.PER_TEST_JVM), config(IsolationOptions.DEFAULT, 3)));
+            Config chained = Config.DEFAULT.withTimeout(9)
+                    .withCsvOutput(true)
+                    .withLanguage(Language.SPANISH)
+                    .withLogging(false)
+                    .withIsolation(perTest());
+            check(chained.timeout() == 9 && chained.csvOutput() && chained.language() == Language.SPANISH
+                            && chained.logger() instanceof Logger.SilentLogger
+                            && chained.isolation().mode() == TestIsolationMode.PER_TEST_JVM,
+                    "with* methods chain and preserve settings");
+            TestResult r = testNamed("pass").run(
+                    config(IsolationOptions.DEFAULT, 3).withIsolation(IsolationOptions.DEFAULT.withMode(TestIsolationMode.PER_TEST_JVM)));
             check(r instanceof TestResult.InfrastructureFailure f && f.kind() == TestResult.InfrastructureFailure.Kind.CONFIGURATION_ERROR,
                     "PER_TEST_JVM without provider is a CONFIGURATION_ERROR, got " + r);
         });
@@ -370,7 +394,7 @@ public class IsolationTests {
             check(logger.started.equals(List.of("first", "exits", "hangs", "wrong", "last")), "logStart events " + logger.started);
             check(logger.results.size() == 5 && logger.results.get(2) instanceof TestResult.TimeoutFailure
                     && logger.results.get(1) instanceof TestResult.InfrastructureFailure, "logResult events");
-            List<Results> all = TestSuite.runAll(Config.withLogging(false, c), new Mixed().suites().get(0));
+            List<Results> all = TestSuite.runAll(c.withLogging(false), new Mixed().suites().get(0));
             check(all.size() == 1 && all.get(0).getPassed() == 2, "runAll works");
 
             var same = new RecordingLogger();
