@@ -172,8 +172,27 @@ public class Example implements TestSuiteProvider {
             Config.DEFAULT
                     .withTimeout(2)
                     .withIsolation(IsolationOptions.pooledJvm(Example.class));
+    List<TestSuite> suites = provider.suites();
+    if (args.length > 0) {
+      if (args.length != 1 || !args[0].startsWith("--suite=")) {
+        throw new IllegalArgumentException("Expected an optional argument in the form --suite=<suite name>");
+      }
+
+      String suiteName = args[0].substring("--suite=".length());
+      if (suiteName.isBlank()) {
+        throw new IllegalArgumentException("Suite name cannot be empty");
+      }
+
+      suites = suites.stream()
+              .filter(suite -> suite.getName().equals(suiteName))
+              .toList();
+      if (suites.isEmpty()) {
+        throw new IllegalArgumentException("No suite named '" + suiteName + "'");
+      }
+    }
+
     System.out.println("Running Test Suite for the Testing Library...");
-    TestSuite.runAll(config, provider.suites().toArray(TestSuite[]::new));
+    TestSuite.runAll(config, suites.toArray(TestSuite[]::new));
     System.out.println("\nTest Suite Execution Finished.");
   }
 }
