@@ -5,6 +5,8 @@ import test.unit.core.Test;
 import test.unit.core.TestFactory;
 import test.unit.core.TestSuite;
 import test.unit.execution.TestSuiteProvider;
+
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiPredicate;
@@ -168,12 +170,36 @@ public class Example implements TestSuiteProvider {
 
   public static void main(String[] args) {
     Example provider = new Example();
-    Config config =
-            Config.DEFAULT
-                    .withTimeout(2)
-                    .withIsolation(IsolationOptions.pooledJvm(Example.class));
+    Config config = Config.DEFAULT.withTimeout(1);
+
+    if (!Arrays.asList(args).contains("--no-isolation")) {
+      config = config.withIsolation(IsolationOptions.pooledJvm(Example.class));
+    }
+
+    java.util.List<TestSuite> suites = provider.suites();
+
+    java.util.Set<String> selectedSuites = new java.util.HashSet<>();
+    for (String arg : args) {
+      if (arg.startsWith("--suite=")) {
+        String suiteName = arg.substring("--suite=".length());
+        if (suiteName.isBlank()) {
+          throw new IllegalArgumentException("Suite name cannot be empty");
+        }
+        if (suites.stream().noneMatch(suite -> suite.getName().equals(suiteName))) {
+          throw new IllegalArgumentException("No suite named '" + suiteName + "'");
+        }
+        selectedSuites.add(suiteName);
+      }
+    }
+
+    if (!selectedSuites.isEmpty()) {
+      suites = suites.stream()
+              .filter(suite -> selectedSuites.contains(suite.getName()))
+              .toList();
+    }
+
     System.out.println("Running Test Suite for the Testing Library...");
-    TestSuite.runAll(config, provider.suites().toArray(TestSuite[]::new));
+    TestSuite.runAll(config, suites.toArray(TestSuite[]::new));
     System.out.println("\nTest Suite Execution Finished.");
   }
 }
