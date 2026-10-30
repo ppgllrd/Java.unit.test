@@ -52,6 +52,13 @@ final class IsolationProtocol {
 
     record WorkerRequest(String nonce, TestLocator locator, Language language, boolean ansi, int childTimeoutSeconds) {
         String encode() {
+            Map<String, String> m = fields();
+            m.put("end", nonce);
+            return IsolationProtocol.encode(m);
+        }
+
+        /** The fields of this request, without the closing {@code end} marker. */
+        Map<String, String> fields() {
             Map<String, String> m = new LinkedHashMap<>();
             m.put("version", Integer.toString(VERSION));
             m.put("nonce", nonce);
@@ -63,13 +70,17 @@ final class IsolationProtocol {
             m.put("language", language.name());
             m.put("ansi", Boolean.toString(ansi));
             m.put("timeout", Integer.toString(childTimeoutSeconds));
-            m.put("end", nonce);
-            return IsolationProtocol.encode(m);
+            return m;
         }
 
         static WorkerRequest decode(String text) throws ProtocolException {
             Map<String, String> m = IsolationProtocol.decode(text);
             checkVersionAndEnd(m);
+            return fromFields(m);
+        }
+
+        /** Rebuilds a request from already decoded and version-checked fields. */
+        static WorkerRequest fromFields(Map<String, String> m) throws ProtocolException {
             try {
                 var locator = new TestLocator(req(m, "provider"), req(m, "suite"), Integer.parseInt(req(m, "index")),
                         req(m, "name"), req(m, "class"));
@@ -101,8 +112,8 @@ final class IsolationProtocol {
 
     // --- Result file ---
 
-    /** Writes the result atomically: complete content in a sibling temp file, then rename. */
-    static void writeResult(Path resultFile, String nonce, ChildResult r) throws IOException {
+    /** The fields of a result, without the closing {@code end} marker. */
+    static Map<String, String> resultFields(String nonce, ChildResult r) {
         Map<String, String> m = new LinkedHashMap<>();
         m.put("version", Integer.toString(VERSION));
         m.put("nonce", nonce);
@@ -116,6 +127,12 @@ final class IsolationProtocol {
         m.put("description", limit(r.description()));
         m.put("timeoutSeconds", Integer.toString(r.timeoutSeconds()));
         m.put("detail", limit(r.detail()));
+        return m;
+    }
+
+    /** Writes the result atomically: complete content in a sibling temp file, then rename. */
+    static void writeResult(Path resultFile, String nonce, ChildResult r) throws IOException {
+        Map<String, String> m = resultFields(nonce, r);
         m.put("end", nonce);
         Path tmp = resultFile.resolveSibling(resultFile.getFileName() + ".tmp");
         Files.writeString(tmp, encode(m), StandardCharsets.UTF_8);
@@ -134,7 +151,11 @@ final class IsolationProtocol {
         if (Files.size(resultFile) > MAX_RESULT_BYTES) {
             throw new ProtocolException("result file is unreasonably large");
         }
-        Map<String, String> m = decode(Files.readString(resultFile, StandardCharsets.UTF_8));
+        return parseResult(decode(Files.readString(resultFile, StandardCharsets.UTF_8)), expectedNonce, expectedTestId);
+    }
+
+    /** Validates decoded result fields (version, end marker, nonce, test id) and builds the {@link ChildResult}. */
+    static ChildResult parseResult(Map<String, String> m, String expectedNonce, String expectedTestId) throws ProtocolException {
         checkVersionAndEnd(m);
         if (!expectedNonce.equals(m.get("end")) || !expectedNonce.equals(m.get("nonce"))) {
             throw new ProtocolException("result does not carry this run's nonce");
@@ -150,6 +171,82 @@ final class IsolationProtocol {
         } catch (IllegalArgumentException e) {
             throw new ProtocolException("invalid result field: " + e.getMessage(), e);
         }
+    }
+
+    // --- Pooled workers (POOLED_JVM) ---
+    //
+    // Parent -> worker: one line per message on the worker's stdin, base64(encode(fields)).
+    // Worker -> parent: one line per message on the worker's original stdout, LINE_MARKER + base64(encode(fields)),
+    // preceded by a line break so that unterminated output of the test cannot corrupt it. Everything else the
+    // worker prints is ignored by the parent. Messages carry the worker's secret nonce in the "nonce" and "end" fields.
+
+    /** Prefix of every worker-to-parent message line. */
+    static final String LINE_MARKER = "@@test-unit-pool-v" + VERSION + "@@";
+
+    static final String TYPE_HELLO = "hello";
+    static final String TYPE_READY = "ready";
+    static final String TYPE_TEST = "test";
+    static final String TYPE_RESULT = "result";
+
+    static String toLine(Map<String, String> fields) {
+        return Base64.getEncoder().encodeToString(encode(fields).getBytes(StandardCharsets.UTF_8));
+    }
+
+    static Map<String, String> fromLine(String line) throws ProtocolException {
+        try {
+            return decode(new String(Base64.getDecoder().decode(line.strip()), StandardCharsets.UTF_8));
+        } catch (IllegalArgumentException e) {
+            throw new ProtocolException("invalid message line", e);
+        }
+    }
+
+    static Map<String, String> helloFields(String nonce, String provider, int maxOutputChars) {
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put("version", Integer.toString(VERSION));
+        m.put("type", TYPE_HELLO);
+        m.put("nonce", nonce);
+        m.put("provider", provider);
+        m.put("maxOutputChars", Integer.toString(maxOutputChars));
+        m.put("end", nonce);
+        return m;
+    }
+
+    static Map<String, String> testFields(WorkerRequest request, long seq) {
+        Map<String, String> m = request.fields();
+        m.put("type", TYPE_TEST);
+        m.put("seq", Long.toString(seq));
+        m.put("end", request.nonce());
+        return m;
+    }
+
+    /** Worker answer to a hello: {@code ready}, or an error ({@code status} and {@code detail}). */
+    static Map<String, String> readyFields(String nonce, Status errorStatus, String detail) {
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put("version", Integer.toString(VERSION));
+        m.put("type", TYPE_READY);
+        m.put("nonce", nonce);
+        m.put("status", errorStatus == null ? "READY" : errorStatus.name());
+        m.put("detail", limit(nz(detail)));
+        m.put("end", nonce);
+        return m;
+    }
+
+    /** A test result plus the output captured by the worker while running it. */
+    static Map<String, String> pooledResultFields(String nonce, long seq, ChildResult r, CapturedOutput out) {
+        Map<String, String> m = resultFields(nonce, r);
+        m.put("type", TYPE_RESULT);
+        m.put("seq", Long.toString(seq));
+        m.put("stdout", out.stdout());
+        m.put("stderr", out.stderr());
+        m.put("stdoutTruncated", Boolean.toString(out.stdoutTruncated()));
+        m.put("stderrTruncated", Boolean.toString(out.stderrTruncated()));
+        m.put("end", nonce);
+        return m;
+    }
+
+    /** Output a pooled worker captured from {@code System.out}/{@code System.err} during one test. */
+    record CapturedOutput(String stdout, String stderr, boolean stdoutTruncated, boolean stderrTruncated) {
+        static final CapturedOutput NONE = new CapturedOutput("", "", false, false);
     }
 
     // --- Codec ---
@@ -184,7 +281,7 @@ final class IsolationProtocol {
         return m;
     }
 
-    private static void checkVersionAndEnd(Map<String, String> m) throws ProtocolException {
+    static void checkVersionAndEnd(Map<String, String> m) throws ProtocolException {
         String version = m.get("version");
         if (!Integer.toString(VERSION).equals(version)) {
             throw new ProtocolException("incompatible protocol version " + version + " (expected " + VERSION + ")");
@@ -194,13 +291,13 @@ final class IsolationProtocol {
         }
     }
 
-    private static String req(Map<String, String> m, String key) throws ProtocolException {
+    static String req(Map<String, String> m, String key) throws ProtocolException {
         String v = m.get(key);
         if (v == null) throw new ProtocolException("missing field: " + key);
         return v;
     }
 
-    private static String nz(String s) { return s == null ? "" : s; }
+    static String nz(String s) { return s == null ? "" : s; }
 
     private static String limit(String s) {
         return s.length() <= MAX_TEXT_CHARS ? s : s.substring(0, MAX_TEXT_CHARS);

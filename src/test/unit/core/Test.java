@@ -7,6 +7,7 @@ import test.unit.config.TestIsolationMode;
 import test.unit.exceptions.ExceptionOneOf;
 import test.unit.execution.ExecutionOutcome;
 import test.unit.execution.TestExecutionRequest;
+import test.unit.execution.WorkerPool;
 import test.unit.execution.TestLocator;
 import test.unit.logging.Logger;
 import java.util.Objects;
@@ -76,31 +77,33 @@ public non-sealed abstract class Test implements SuiteItem  {
      */
     final TestResult runLocated(Config config, TestLocator locator) {
         Objects.requireNonNull(config, "Config cannot be null for running test");
+        logStart(config);
+        ExecutionOutcome outcome = executeOutcome(config, locator, null);
+        logOutcome(config, outcome);
+        return outcome.result();
+    }
+
+    /** Logs the start of this test (it is shown before the test runs). */
+    final void logStart(Config config) {
         var logger = config.logger();
+        logger.logStart(logger.bold(" " + this.name), config);
+    }
 
-        // 1. Log Start: Use bold style for the test name prefix
-        logger.logStart(logger.bold(" " + this.name), config); // Pass config
-
-        // 2. Resolve Timeout: Use override if present, otherwise use config default
+    /** Runs this test through the configured strategy, with the *resolved* timeout. Does not log anything. */
+    final ExecutionOutcome executeOutcome(Config config, TestLocator locator, WorkerPool pool) {
         final int resolvedTimeout = this.timeoutOverride.orElse(config.timeout());
+        Config executionConfig = config.withTimeout(resolvedTimeout).withCsvOutput(false);
+        return TestExecutionStrategy.forMode(config.isolation().mode())
+                .execute(new TestExecutionRequest(this, locator, executionConfig, pool));
+    }
 
-        // 3. Execute Core Logic through the configured strategy (SAME_JVM by default), with a config
-        //    carrying the *resolved* timeout.
-        Config executionConfig = new Config(config.logger(), config.language(), resolvedTimeout, false, config.isolation());
-        ExecutionOutcome outcome = TestExecutionStrategy.forMode(config.isolation().mode())
-                .execute(new TestExecutionRequest(this, locator, executionConfig));
-        TestResult result = outcome.result();
-
-        // 4. Log Result: Use the logger to print the formatted result message
-        logger.logResult(result, config); // Pass original config for context
+    /** Logs the result of this test and whatever its child JVM printed. */
+    final void logOutcome(Config config, ExecutionOutcome outcome) {
+        var logger = config.logger();
+        logger.logResult(outcome.result(), config);
         logger.println(); // Add a blank line after each test result for readability
         logChildOutput(outcome, config);
-
-        // 5. Flush Logger: Ensure output is visible immediately
         logger.flush();
-
-        // Return the outcome
-        return result;
     }
 
     /** Shows what the child JVM printed (PER_TEST_JVM only; in SAME_JVM the test writes to the console itself). */

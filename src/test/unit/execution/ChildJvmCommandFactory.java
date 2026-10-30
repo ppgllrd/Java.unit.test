@@ -10,7 +10,7 @@ import java.util.Objects;
 
 /**
  * Builds the command line (executable plus one element per argument, never a shell string) used to start the
- * child JVM of {@link TestIsolationMode#PER_TEST_JVM}. Implement it to customize the invocation when the
+ * child JVMs of {@link TestIsolationMode#PER_TEST_JVM} and {@link TestIsolationMode#POOLED_JVM}. Implement it to customize the invocation when the
  * default (current {@code java.class.path} / {@code jdk.module.path}) is not appropriate, e.g. for an
  * executable JAR layout, a different Java runtime or an unusual launcher.
  *
@@ -23,12 +23,20 @@ public interface ChildJvmCommandFactory {
      * Describes the child JVM to start.
      *
      * @param resultFile File where the worker must write its result; passed as the last argument to the main class.
+     *                   {@code null} for a pooled worker, which reports through stdout instead.
      * @param jvmArgs Extra JVM arguments configured in {@link IsolationOptions#jvmArgs()}.
+     * @param pooled {@code true} to start a long-lived worker of {@link TestIsolationMode#POOLED_JVM}
+     *               ({@link PooledTestWorker}, which takes only {@code <protocolVersion>}) instead of a one-test worker.
      */
-    record Request(Path resultFile, List<String> jvmArgs) {
+    record Request(Path resultFile, List<String> jvmArgs, boolean pooled) {
         public Request {
-            Objects.requireNonNull(resultFile, "resultFile cannot be null");
+            if (!pooled) Objects.requireNonNull(resultFile, "resultFile cannot be null");
             jvmArgs = List.copyOf(jvmArgs);
+        }
+
+        /** A request for a one-test worker (PER_TEST_JVM). */
+        public Request(Path resultFile, List<String> jvmArgs) {
+            this(resultFile, jvmArgs, false);
         }
     }
 
@@ -42,8 +50,14 @@ public interface ChildJvmCommandFactory {
 
     /** Like {@link #standard()} but with an explicit class path and worker main class (mostly for custom setups). */
     static ChildJvmCommandFactory standard(String classPath, String workerMainClass) {
+        return standard(classPath, workerMainClass, PooledTestWorker.class.getName());
+    }
+
+    /** Like {@link #standard(String, String)} but also with an explicit main class for pooled workers. */
+    static ChildJvmCommandFactory standard(String classPath, String workerMainClass, String pooledWorkerMainClass) {
         Objects.requireNonNull(classPath, "classPath cannot be null");
         Objects.requireNonNull(workerMainClass, "workerMainClass cannot be null");
+        Objects.requireNonNull(pooledWorkerMainClass, "pooledWorkerMainClass cannot be null");
         return request -> {
             List<String> command = new ArrayList<>();
             command.add(javaExecutable().toString());
@@ -59,9 +73,11 @@ public interface ChildJvmCommandFactory {
             command.addAll(request.jvmArgs());
             command.add("-cp");
             command.add(classPath);
-            command.add(workerMainClass);
+            command.add(request.pooled() ? pooledWorkerMainClass : workerMainClass);
             command.add(Integer.toString(IsolationProtocol.VERSION));
-            command.add(request.resultFile().toString());
+            if (!request.pooled()) {
+                command.add(request.resultFile().toString());
+            }
             return command;
         };
     }

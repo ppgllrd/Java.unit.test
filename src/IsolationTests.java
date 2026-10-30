@@ -15,6 +15,7 @@ import test.unit.execution.PerTestJvmExecutionStrategy;
 import test.unit.execution.TestExecutionRequest;
 import test.unit.execution.TestLocator;
 import test.unit.execution.TestSuiteProvider;
+import test.unit.execution.WorkerPool;
 import test.unit.i18n.Language;
 import test.unit.logging.Logger;
 import java.io.IOException;
@@ -118,6 +119,17 @@ public class IsolationTests {
                 Assert.create("hangs", () -> { while (true) { } }, 1),
                 Equal.create("wrong", () -> 1, 2),
                 Assert.create("last", () -> true)));
+        }
+    }
+
+    public static final class Statics implements TestSuiteProvider {
+        public Statics() {}
+
+        @Override
+        public List<TestSuite> suites() {
+            return List.of(new TestSuite("Statics",
+                Assert.create("inc", () -> { counter++; return true; }),
+                Assert.create("check", () -> counter == 1)));
         }
     }
 
@@ -429,6 +441,62 @@ public class IsolationTests {
             }
             for (Thread t : threads) t.join(120_000);
             check(bad.isEmpty(), "parallel results " + bad);
+        });
+
+        runCase("POOLED_JVM: Mixed suite recovers from exit, timeout and failure", () -> {
+            var logger = new RecordingLogger();
+            Config c = new Config(logger, Language.ENGLISH, 20, false, IsolationOptions.pooledJvm(Mixed.class));
+            var results = new Mixed().suites().get(0).run(c);
+            check(results.getTotal() == 5 && results.getPassed() == 2, "2 of 5 passed, got " + results.getPassed());
+            check(logger.started.equals(List.of("first", "exits", "hangs", "wrong", "last")), "ordered start " + logger.started);
+            check(logger.results.get(1) instanceof TestResult.InfrastructureFailure, "exit is infrastructure failure: " + logger.results.get(1));
+            check(logger.results.get(2) instanceof TestResult.TimeoutFailure, "timeout: " + logger.results.get(2));
+            check(!logger.results.get(3).isSuccess() && !(logger.results.get(3) instanceof TestResult.InfrastructureFailure), "wrong: " + logger.results.get(3));
+            check(logger.results.get(4).isSuccess(), "worker replaced, last passes");
+        });
+
+        runCase("POOLED_JVM: workers are reused; maxTestsPerWorker renews them", () -> {
+            Config shared = new Config(new Logger.SilentLogger(), Language.ENGLISH, 20, false, IsolationOptions.pooledJvm(Statics.class));
+            var r1 = new Statics().suites().get(0).run(shared);
+            check(r1.getPassed() == 2, "static state shared in a reused worker: " + r1.getPassed());
+            Config fresh = shared.withIsolation(IsolationOptions.pooledJvm(Statics.class).withMaxTestsPerWorker(1));
+            var r2 = new Statics().suites().get(0).run(fresh);
+            check(r2.getPassed() == 1, "maxTestsPerWorker=1 gives a fresh JVM per test: " + r2.getPassed());
+        });
+
+        runCase("POOLED_JVM: output capture and missing provider", () -> {
+            var opts = IsolationOptions.pooledJvm(Fixtures.class);
+            try (var pool = new WorkerPool(opts, 1)) {
+                List<SuiteItem> items = new Fixtures().suites().get(0).getItems();
+                for (int i = 0; i < items.size(); i++) {
+                    if (items.get(i) instanceof Test t && t.getName().equals("lookalike")) {
+                        var loc = new TestLocator(Fixtures.class.getName(), "Fixtures", i, "lookalike", t.getClass().getName());
+                        var o = pool.execute(new TestExecutionRequest(t, loc, config(opts, 20), pool));
+                        check(!o.result().isSuccess(), "lookalike fails by design: " + o.result());
+                        check(o.stdout().contains("RESULT PASSED") && o.stdout().contains("\u20ac"), "stdout captured: " + o.stdout());
+                        check(o.stderr().contains("RESULT PASSED"), "stderr captured");
+                    }
+                }
+            }
+            TestResult r = testNamed("pass").run(config(IsolationOptions.DEFAULT.withMode(TestIsolationMode.POOLED_JVM), 3));
+            check(r instanceof TestResult.InfrastructureFailure f && f.kind() == TestResult.InfrastructureFailure.Kind.CONFIGURATION_ERROR,
+                    "POOLED_JVM without provider is CONFIGURATION_ERROR, got " + r);
+        });
+
+        runCase("parallelism with every mode keeps order and results", () -> {
+            for (var opts : List.of(IsolationOptions.DEFAULT, IsolationOptions.perTestJvm(Mixed.class), IsolationOptions.pooledJvm(Mixed.class))) {
+                var logger = new RecordingLogger();
+                Config c = new Config(logger, Language.ENGLISH, 20, false, opts).withParallelism(3);
+                check(c.parallelism() == 3 && c.withTimeout(5).withLogging(false).parallelism() == 3, "parallelism preserved");
+                var suite = opts.mode() == TestIsolationMode.SAME_JVM
+                        ? new TestSuite("S", Assert.create("a", () -> true), Equal.create("b", () -> 1, 2), Assert.create("c", () -> true))
+                        : new Mixed().suites().get(0);
+                var results = suite.run(c);
+                int expected = 2;
+                check(results.getPassed() == expected, opts.mode() + " passed " + results.getPassed());
+                check(logger.started.equals(suite.getItems().stream().filter(i -> i instanceof Test).map(i -> ((Test) i).getName()).toList()),
+                        opts.mode() + " ordered " + logger.started);
+            }
         });
 
         deleteTree(work);

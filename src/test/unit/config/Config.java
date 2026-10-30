@@ -20,6 +20,8 @@ import java.util.Objects;
  * @param timeout The default timeout duration in seconds for individual tests, used when a test doesn't specify its own `timeoutOverride`.
  * @param csvOutput Whether to output results in CSV format.
  * @param isolation How tests are isolated ({@link IsolationOptions}); defaults to {@link TestIsolationMode#SAME_JVM}.
+ * @param parallelism Maximum number of tests of a run executing at the same time (1 = sequential, the default).
+ *                    Independent of the isolation mode. Output is always reported in suite order.
  * @author Pepe Gallardo & Gemini
  */
 public record Config(
@@ -27,7 +29,8 @@ public record Config(
         Language language,
         int timeout,
         boolean csvOutput,
-        IsolationOptions isolation
+        IsolationOptions isolation,
+        int parallelism
 ) {
     // Default constructor is provided by the record
 
@@ -41,20 +44,30 @@ public record Config(
             throw new IllegalArgumentException("timeout must be positive");
         }
         Objects.requireNonNull(isolation, "isolation cannot be null");
+        if (parallelism < 1) {
+            throw new IllegalArgumentException("parallelism must be at least 1");
+        }
+    }
+
+    /**
+     * Constructor with default parallelism (1, sequential).
+     */
+    public Config(Logger logger, Language language, int timeout, boolean csvOutput, IsolationOptions isolation) {
+        this(logger, language, timeout, csvOutput, isolation, 1);
     }
 
     /**
      * Backwards-compatible constructor: same as the canonical one with default isolation (SAME_JVM).
      */
     public Config(Logger logger, Language language, int timeout, boolean csvOutput) {
-        this(logger, language, timeout, csvOutput, IsolationOptions.DEFAULT);
+        this(logger, language, timeout, csvOutput, IsolationOptions.DEFAULT, 1);
     }
 
     /**
      * No-argument constructor that provides default values.
      */
     public Config() {
-        this(new Logger.AnsiConsoleLogger(), Language.ENGLISH, 3, false, IsolationOptions.DEFAULT);
+        this(new Logger.AnsiConsoleLogger(), Language.ENGLISH, 3, false, IsolationOptions.DEFAULT, 1);
     }
 
 
@@ -103,7 +116,7 @@ public record Config(
     public Config withLogging(boolean logging, boolean useAnsi) {
         Logger newLogger = !logging ? new Logger.SilentLogger() :
                 useAnsi ? new Logger.AnsiConsoleLogger() : new Logger.ConsoleLogger();
-        return new Config(newLogger, language, timeout, csvOutput, isolation);
+        return new Config(newLogger, language, timeout, csvOutput, isolation, parallelism);
     }
 
     /** Returns a copy of this configuration with logging enabled or disabled, using ANSI output when enabled. */
@@ -117,7 +130,7 @@ public record Config(
      * @param csvOutput {@code true} to enable CSV output, {@code false} to disable it.
      */
     public Config withCsvOutput(boolean csvOutput) {
-        return new Config(logger, language, timeout, csvOutput, isolation);
+        return new Config(logger, language, timeout, csvOutput, isolation, parallelism);
     }
 
     /**
@@ -126,7 +139,7 @@ public record Config(
      * @param language The new {@link Language} to use.
      */
     public Config withLanguage(Language language) {
-        return new Config(logger, language, timeout, csvOutput, isolation);
+        return new Config(logger, language, timeout, csvOutput, isolation, parallelism);
     }
 
     /**
@@ -135,7 +148,7 @@ public record Config(
      * @param timeout The new timeout in seconds (must be positive).
      */
     public Config withTimeout(int timeout) {
-        return new Config(logger, language, timeout, csvOutput, isolation);
+        return new Config(logger, language, timeout, csvOutput, isolation, parallelism);
     }
 
     /**
@@ -144,6 +157,16 @@ public record Config(
      * @param isolation The new {@link IsolationOptions}.
      */
     public Config withIsolation(IsolationOptions isolation) {
-        return new Config(logger, language, timeout, csvOutput, isolation);
+        return new Config(logger, language, timeout, csvOutput, isolation, parallelism);
+    }
+
+    /**
+     * Returns a copy of this configuration that runs up to {@code parallelism} tests at the same time.
+     * Works with every {@link TestIsolationMode}; in SAME_JVM the concurrent tests share the JVM (and its static state).
+     *
+     * @param parallelism Maximum number of concurrent tests (at least 1).
+     */
+    public Config withParallelism(int parallelism) {
+        return new Config(logger, language, timeout, csvOutput, isolation, parallelism);
     }
 }

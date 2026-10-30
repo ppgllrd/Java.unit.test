@@ -1,4 +1,4 @@
-# Test isolation: `SAME_JVM` and `PER_TEST_JVM`
+# Test isolation: `SAME_JVM`, `PER_TEST_JVM` and `POOLED_JVM`
 
 ## Modes
 
@@ -46,6 +46,28 @@ parent to obtain the suites you run. Running a test with `PER_TEST_JVM` outside 
 or without a `suiteProvider`, yields a `CONFIGURATION_ERROR` result.
 
 Other options: `withCommandFactory(...)` (see below), `withWorkDirectory(path)` (parent of the per-test temporary directories).
+
+## Speed: `POOLED_JVM` and `parallelism`
+
+Starting one JVM per test is slow with many tests. Two independent options reduce that cost:
+
+* **`POOLED_JVM`** (`IsolationOptions.pooledJvm(Provider.class)`): tests run in a pool of long-lived worker JVMs that load
+  the suite provider once. Needs a `suiteProvider`, like `PER_TEST_JVM`. A worker that times out, crashes, calls
+  `System.exit` or has run `maxTestsPerWorker` tests (`withMaxTestsPerWorker(n)`, `0` = unlimited, the default) is replaced.
+  Caveats: static state is shared by the tests of the same worker (use `withMaxTestsPerWorker(1)` for a fresh JVM per test);
+  stdout/stderr are captured through `System.out/err` (native output is not); the timeout counts from sending the
+  test, not JVM start-up (which has a fixed 60 s limit); a timed-out test loses its captured output;
+  `workDirectory` is ignored.
+* **`Config.withParallelism(n)`** (default 1): runs up to `n` tests concurrently, in any mode. Output is still reported in
+  suite order. In `POOLED_JVM` the pool has `n` workers; in `PER_TEST_JVM`, up to `n` child JVMs. With `SAME_JVM`
+  the tests share the JVM and static state (they must be thread-safe) and their console output may interleave.
+  Timeouts count from when a test starts running, not from when it was queued.
+
+```java
+Config config = Config.DEFAULT
+        .withIsolation(IsolationOptions.pooledJvm(MySuites.class))
+        .withParallelism(4);
+```
 
 ## Timeout semantics
 

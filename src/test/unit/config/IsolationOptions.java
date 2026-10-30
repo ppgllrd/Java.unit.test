@@ -11,16 +11,18 @@ import java.util.Objects;
  * The default ({@link #DEFAULT}) is {@link TestIsolationMode#SAME_JVM}, i.e. the classic behaviour.
  *
  * @param mode Isolation mode.
- * @param suiteProvider Fully qualified name of a {@link TestSuiteProvider}; required (only) for PER_TEST_JVM.
- * @param gracePeriodMillis In PER_TEST_JVM, time given to the child to exit after a normal termination request
+ * @param suiteProvider Fully qualified name of a {@link TestSuiteProvider}; required (only) for PER_TEST_JVM and POOLED_JVM.
+ * @param gracePeriodMillis In PER_TEST_JVM and POOLED_JVM, time given to the child to exit after a normal termination request
  *                          ({@code Process.destroy()}) before {@code destroyForcibly()}. 0 means kill immediately.
- * @param maxOutputChars In PER_TEST_JVM, maximum number of characters kept from each of stdout and stderr of a test.
+ * @param maxOutputChars In PER_TEST_JVM and POOLED_JVM, maximum number of characters kept from each of stdout and stderr of a test.
  *                       The streams keep being drained after the limit; the excess is discarded and flagged as truncated.
- * @param jvmArgs In PER_TEST_JVM, extra JVM arguments for the child (e.g. {@code -Xmx256m}); one element per argument.
- * @param commandFactory In PER_TEST_JVM, custom builder of the child command; {@code null} uses
+ * @param jvmArgs In PER_TEST_JVM and POOLED_JVM, extra JVM arguments for the child (e.g. {@code -Xmx256m}); one element per argument.
+ * @param commandFactory In PER_TEST_JVM and POOLED_JVM, custom builder of the child command; {@code null} uses
  *                       {@link ChildJvmCommandFactory#standard()}.
  * @param workDirectory In PER_TEST_JVM, parent directory for the per-test temporary directories; {@code null}
  *                      uses the system temporary directory.
+ * @param maxTestsPerWorker In POOLED_JVM, a worker is retired and replaced after running this many tests, which
+ *                          bounds the leakage of state and memory between tests; 0 means unlimited.
  * @author Pepe Gallardo & Gemini
  */
 public record IsolationOptions(
@@ -30,10 +32,12 @@ public record IsolationOptions(
         int maxOutputChars,
         List<String> jvmArgs,
         ChildJvmCommandFactory commandFactory,
-        Path workDirectory
+        Path workDirectory,
+        int maxTestsPerWorker
 ) {
     public static final long DEFAULT_GRACE_PERIOD_MILLIS = 0;
     public static final int DEFAULT_MAX_OUTPUT_CHARS = 100_000;
+    public static final int DEFAULT_MAX_TESTS_PER_WORKER = 0;
 
     public IsolationOptions {
         Objects.requireNonNull(mode, "mode cannot be null");
@@ -46,6 +50,9 @@ public record IsolationOptions(
         if (maxOutputChars < 0) {
             throw new IllegalArgumentException("maxOutputChars must not be negative");
         }
+        if (maxTestsPerWorker < 0) {
+            throw new IllegalArgumentException("maxTestsPerWorker must not be negative");
+        }
         Objects.requireNonNull(jvmArgs, "jvmArgs cannot be null");
         jvmArgs = List.copyOf(jvmArgs); // rejects null elements
     }
@@ -53,7 +60,7 @@ public record IsolationOptions(
     /** Default options: SAME_JVM. */
     public IsolationOptions() {
         this(TestIsolationMode.SAME_JVM, null, DEFAULT_GRACE_PERIOD_MILLIS, DEFAULT_MAX_OUTPUT_CHARS,
-                List.of(), null, null);
+                List.of(), null, null, DEFAULT_MAX_TESTS_PER_WORKER);
     }
 
     /** The default options (SAME_JVM). */
@@ -70,31 +77,46 @@ public record IsolationOptions(
         return perTestJvm(provider.getName());
     }
 
+    /** POOLED_JVM options using the given provider class name and defaults for everything else. */
+    public static IsolationOptions pooledJvm(String suiteProvider) {
+        Objects.requireNonNull(suiteProvider, "suiteProvider cannot be null");
+        return DEFAULT.withMode(TestIsolationMode.POOLED_JVM).withSuiteProvider(suiteProvider);
+    }
+
+    /** POOLED_JVM options using the given provider class. */
+    public static IsolationOptions pooledJvm(Class<? extends TestSuiteProvider> provider) {
+        return pooledJvm(provider.getName());
+    }
+
     public IsolationOptions withMode(TestIsolationMode newMode) {
-        return new IsolationOptions(newMode, suiteProvider, gracePeriodMillis, maxOutputChars, jvmArgs, commandFactory, workDirectory);
+        return new IsolationOptions(newMode, suiteProvider, gracePeriodMillis, maxOutputChars, jvmArgs, commandFactory, workDirectory, maxTestsPerWorker);
     }
 
     public IsolationOptions withSuiteProvider(String provider) {
-        return new IsolationOptions(mode, provider, gracePeriodMillis, maxOutputChars, jvmArgs, commandFactory, workDirectory);
+        return new IsolationOptions(mode, provider, gracePeriodMillis, maxOutputChars, jvmArgs, commandFactory, workDirectory, maxTestsPerWorker);
     }
 
     public IsolationOptions withGracePeriodMillis(long millis) {
-        return new IsolationOptions(mode, suiteProvider, millis, maxOutputChars, jvmArgs, commandFactory, workDirectory);
+        return new IsolationOptions(mode, suiteProvider, millis, maxOutputChars, jvmArgs, commandFactory, workDirectory, maxTestsPerWorker);
     }
 
     public IsolationOptions withMaxOutputChars(int chars) {
-        return new IsolationOptions(mode, suiteProvider, gracePeriodMillis, chars, jvmArgs, commandFactory, workDirectory);
+        return new IsolationOptions(mode, suiteProvider, gracePeriodMillis, chars, jvmArgs, commandFactory, workDirectory, maxTestsPerWorker);
     }
 
     public IsolationOptions withJvmArgs(List<String> args) {
-        return new IsolationOptions(mode, suiteProvider, gracePeriodMillis, maxOutputChars, args, commandFactory, workDirectory);
+        return new IsolationOptions(mode, suiteProvider, gracePeriodMillis, maxOutputChars, args, commandFactory, workDirectory, maxTestsPerWorker);
     }
 
     public IsolationOptions withCommandFactory(ChildJvmCommandFactory factory) {
-        return new IsolationOptions(mode, suiteProvider, gracePeriodMillis, maxOutputChars, jvmArgs, factory, workDirectory);
+        return new IsolationOptions(mode, suiteProvider, gracePeriodMillis, maxOutputChars, jvmArgs, factory, workDirectory, maxTestsPerWorker);
     }
 
     public IsolationOptions withWorkDirectory(Path directory) {
-        return new IsolationOptions(mode, suiteProvider, gracePeriodMillis, maxOutputChars, jvmArgs, commandFactory, directory);
+        return new IsolationOptions(mode, suiteProvider, gracePeriodMillis, maxOutputChars, jvmArgs, commandFactory, directory, maxTestsPerWorker);
+    }
+
+    public IsolationOptions withMaxTestsPerWorker(int tests) {
+        return new IsolationOptions(mode, suiteProvider, gracePeriodMillis, maxOutputChars, jvmArgs, commandFactory, workDirectory, tests);
     }
 }

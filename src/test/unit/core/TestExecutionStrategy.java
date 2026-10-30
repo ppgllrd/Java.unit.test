@@ -3,6 +3,7 @@ package test.unit.core;
 import test.unit.config.TestIsolationMode;
 import test.unit.execution.ExecutionOutcome;
 import test.unit.execution.PerTestJvmExecutionStrategy;
+import test.unit.execution.PooledJvmExecutionStrategy;
 import test.unit.execution.TestExecutionRequest;
 
 /**
@@ -21,6 +22,7 @@ public interface TestExecutionStrategy {
         return switch (mode) {
             case SAME_JVM -> SameJvmExecutionStrategy.INSTANCE;
             case PER_TEST_JVM -> PerTestJvmExecutionStrategy.INSTANCE;
+            case POOLED_JVM -> PooledJvmExecutionStrategy.INSTANCE;
         };
     }
 }

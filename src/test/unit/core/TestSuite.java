@@ -1,9 +1,13 @@
 package test.unit.core;
 
 import test.unit.config.Config;
+import test.unit.execution.ExecutionOutcome;
 import test.unit.execution.TestLocator;
 import test.unit.logging.Logger;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -67,6 +71,59 @@ public final class TestSuite { // Made final
      */
     public Results run(Config config) {
         Objects.requireNonNull(config, "Config cannot be null for running suite");
+        return runSuites(config, List.of(this)).get(0);
+    }
+
+    /**
+     * Runs the given suites: all their tests are submitted first (concurrently when {@code config.parallelism() > 1}),
+     * while reporting happens in order on the calling thread, so the output is the same as for a sequential run.
+     */
+    private static List<Results> runSuites(Config config, List<TestSuite> suites) {
+        String provider = config.isolation().suiteProvider();
+        try (RunScope scope = new RunScope(config)) {
+            List<List<Supplier<ExecutionOutcome>>> pending = new ArrayList<>();
+            for (TestSuite suite : suites) {
+                List<Supplier<ExecutionOutcome>> outcomes = new ArrayList<>();
+                for (int index = 0; index < suite.items.size(); index++) {
+                    if (suite.items.get(index) instanceof Test test) {
+                        TestLocator locator = provider == null ? null
+                                : new TestLocator(provider, suite.name, index, test.getName(), test.getClass().getName());
+                        outcomes.add(submit(scope, config, test, locator));
+                    }
+                }
+                pending.add(outcomes);
+            }
+            List<Results> all = new ArrayList<>();
+            for (int i = 0; i < suites.size(); i++) {
+                all.add(suites.get(i).report(config, pending.get(i)));
+            }
+            return all;
+        }
+    }
+
+    private static Supplier<ExecutionOutcome> submit(RunScope scope, Config config, Test test, TestLocator locator) {
+        if (scope.executor() == null) {
+            return () -> test.executeOutcome(config, locator, scope.pool()); // lazily, when reported
+        }
+        Future<ExecutionOutcome> future = scope.executor().submit(() -> test.executeOutcome(config, locator, scope.pool()));
+        return () -> awaitOutcome(future);
+    }
+
+    private static ExecutionOutcome awaitOutcome(Future<ExecutionOutcome> future) {
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return ExecutionOutcome.of(new TestResult.InfrastructureFailure(
+                    TestResult.InfrastructureFailure.Kind.PROCESS_ERROR, "interrupted while waiting for the test"), 0);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof RuntimeException r) throw r;
+            if (e.getCause() instanceof Error err) throw err;
+            throw new IllegalStateException(e.getCause());
+        }
+    }
+
+    private Results report(Config config, List<Supplier<ExecutionOutcome>> outcomes) {
         var logger = config.logger();
 
         // 1. Log Suite Header
@@ -78,17 +135,18 @@ public final class TestSuite { // Made final
             logger.println("=".repeat(headerMessage.length())); // Simple underline
         }
 
-        // 2. Run Individual Tests and Collect Results
-        String provider = config.isolation().suiteProvider();
+        // 2. Report Individual Tests and Collect Results
         List<TestResult> testResultsList = new ArrayList<>();
-        for (int index = 0; index < this.items.size(); index++) {
-            switch (this.items.get(index)) {
-                case Test test -> {                                    // a Test, run it and collect the result
-                    TestLocator locator = provider == null ? null
-                            : new TestLocator(provider, this.name, index, test.getName(), test.getClass().getName());
-                    testResultsList.add(test.runLocated(config, locator));
+        int next = 0;
+        for (SuiteItem item : this.items) {
+            switch (item) {
+                case Test test -> {
+                    test.logStart(config);
+                    ExecutionOutcome outcome = outcomes.get(next++).get();
+                    test.logOutcome(config, outcome);
+                    testResultsList.add(outcome.result());
                 }
-                case InfoMessage msg -> msg.print(config);             // an InfoMessage, just print it
+                case InfoMessage msg -> msg.print(config);
             }
         }
 
@@ -97,11 +155,7 @@ public final class TestSuite { // Made final
 
         // 4. Log Suite Summary
         logger.println(String.format("\n%s\n", results.mkString(config))); // Add newlines
-
-        // 5. Flush Logger
         logger.flush();
-
-        // 6. Return Aggregated Results
         return results;
     }
 
@@ -211,9 +265,7 @@ public final class TestSuite { // Made final
          }
 
         // Run each suite sequentially, collecting their Results objects
-        List<Results> allResults = Stream.of(testSuites)
-                .map(suite -> suite.run(config))
-                .collect(Collectors.toList()); // Collect to mutable list first
+        List<Results> allResults = runSuites(config, List.of(testSuites));
 
         // Print the final overall summary
         printAllResultsSummary(allResults, config);

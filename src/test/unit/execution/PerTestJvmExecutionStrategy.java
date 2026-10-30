@@ -174,6 +174,11 @@ public final class PerTestJvmExecutionStrategy implements TestExecutionStrategy 
             return processError("child JVM exit code " + exitCode + " is inconsistent with the reported status "
                     + r.status() + " (expected " + r.status().exitCode + "); the result is not trusted." + tail(stderr));
         }
+        return toTestResult(r);
+    }
+
+    /** Maps a validated child result to the library's {@link TestResult}. */
+    static TestResult toTestResult(IsolationProtocol.ChildResult r) {
         return switch (r.status()) {
             case PASSED -> new TestResult.Success();
             case FAILED -> new TestResult.RemoteFailure(TestResult.RemoteFailure.Kind.FAILED, r.message(),
@@ -189,11 +194,11 @@ public final class PerTestJvmExecutionStrategy implements TestExecutionStrategy 
         };
     }
 
-    private static TestResult processError(String detail) {
+    static TestResult processError(String detail) {
         return new TestResult.InfrastructureFailure(TestResult.InfrastructureFailure.Kind.PROCESS_ERROR, detail);
     }
 
-    private static String tail(String stderr) {
+    static String tail(String stderr) {
         if (stderr.isBlank()) return "";
         String t = stderr.length() > TAIL_CHARS ? "..." + stderr.substring(stderr.length() - TAIL_CHARS) : stderr;
         return "\nLast stderr output:\n" + t.stripTrailing();
@@ -243,7 +248,7 @@ public final class PerTestJvmExecutionStrategy implements TestExecutionStrategy 
         }
     }
 
-    private static void closeQuietly(Process process) {
+    static void closeQuietly(Process process) {
         try { process.getInputStream().close(); } catch (IOException ignored) { }
         try { process.getErrorStream().close(); } catch (IOException ignored) { }
         try { process.getOutputStream().close(); } catch (IOException ignored) { }
@@ -263,18 +268,18 @@ public final class PerTestJvmExecutionStrategy implements TestExecutionStrategy 
         }
     }
 
-    private static int childInternalTimeout(int timeoutSeconds) {
+    static int childInternalTimeout(int timeoutSeconds) {
         long t = 2L * timeoutSeconds + 30;
         return t > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) t;
     }
 
-    private static String randomNonce() {
+    static String randomNonce() {
         byte[] bytes = new byte[16];
         RANDOM.nextBytes(bytes);
         return HexFormat.of().formatHex(bytes);
     }
 
-    private static String render(List<String> command) {
+    static String render(List<String> command) {
         StringBuilder sb = new StringBuilder();
         for (String arg : command) {
             if (sb.length() > 0) sb.append(' ');
