@@ -171,7 +171,7 @@ public class Example implements TestSuiteProvider {
     Config config =
             Config.DEFAULT
                     .withTimeout(2)
-                    .withIsolation(IsolationOptions.perTestJvm(Example.class));
+                    .withIsolation(IsolationOptions.pooledJvm(Example.class));
     System.out.println("Running Test Suite for the Testing Library...");
     TestSuite.runAll(config, provider.suites().toArray(TestSuite[]::new));
     System.out.println("\nTest Suite Execution Finished.");
